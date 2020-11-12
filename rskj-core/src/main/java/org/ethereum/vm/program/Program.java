@@ -795,7 +795,7 @@ public class Program {
 
     private void cleanReturnDataBuffer(ActivationConfig.ForBlock activations) {
         if(activations.isActive(ConsensusRule.RSKIP171)) {
-            // reset return data buffer when call did not create a new call frame
+            // EIP-211 "If the call-like opcode is executed but does not really instantiate a call frame"
             returnDataBuffer = null;
         }
     }
@@ -1351,8 +1351,67 @@ public class Program {
         return ret;
     }
 
-    public void callToPrecompiledAddress(MessageCall msg, PrecompiledContract contract, ActivationConfig.ForBlock activations) {
+    /**
+     * Call to a precompiled contract and push status (ZERO or ONE) to the stack.
+     * If it succeeds a ZERO will be pushed to the stack, otherwise ONE.
+     *
+     * This method
+     *
+     * @param msg a message
+     * @param precompiledContract precompiled contract to be executed
+     * @param activations to define which method you'll execute
+     *
+     * @return success or failure
+     * */
+    public boolean callToPrecompiledAddress(MessageCall msg, PrecompiledContract precompiledContract, ActivationConfig.ForBlock activations) {
+        if(!activations.isActive(ConsensusRule.RSKIP999)) {
+            // the way we use to call a precompiled contract
+            callToPrecompiledAddressLegacy(msg, precompiledContract, activations);
 
+            return true;
+        }
+
+        boolean result;
+        try {
+            // now we call a precompiled contract like this
+            result = callToPrecompiledAddressIris(msg, precompiledContract, activations);
+        } catch (Exception e) {
+            stackPushOne(); // push status fail
+            logger.error("something failed during precompiled contract call", e);
+
+            return false;
+        }
+
+        return pushStatus(result);
+    }
+
+    /**
+     * Push a status to the stack after a precompiled contract call
+     *
+     * @param result a precompiled contract call result
+     *
+     * @return the same given result
+     * */
+    private boolean pushStatus(boolean result) {
+        if(result) {
+            stackPushZero();
+        } else {
+            stackPushOne();
+            logger.warn("call to precompiled address failed");
+        }
+
+        return result;
+    }
+
+    /**
+     * Internal callToPrecompiledAddress before RSKIP999.
+     *
+     * @param msg a message
+     * @param contract precompiled contract to be executed
+     * @param activations for old consensus rules
+     * */
+    @Deprecated
+    private void callToPrecompiledAddressLegacy(MessageCall msg, PrecompiledContract contract, ActivationConfig.ForBlock activations) {
         if (getCallDeep() == getMaxDepth()) {
             stackPushZero();
             this.refundGas(msg.getGas().longValue(), " call deep limit reach");
@@ -1447,6 +1506,118 @@ public class Program {
             this.stackPushOne();
             track.commit();
         }
+    }
+
+    /**
+     * Internal callToPrecompiledAddress before RSKIP999.
+     *
+     * @param msg a message
+     * @param contract precompiled contract to be executed
+     * @param activations for old consensus rules
+     *
+     * @return success or failure
+     * */
+    private boolean callToPrecompiledAddressIris(MessageCall msg, PrecompiledContract contract, ActivationConfig.ForBlock activations) {
+        if (getCallDeep() == getMaxDepth()) {
+            stackPushZero(); // todo(fedejinich) remove
+            refundGas(msg.getGas().longValue(), " call deep limit reach");
+
+            return false;
+        }
+
+        Repository track = getStorage().startTracking();
+
+        RskAddress senderAddress = getOwnerRskAddress();
+        RskAddress codeAddress = new RskAddress(msg.getCodeAddress());
+        RskAddress contextAddress = msg.getType().isStateless() ? senderAddress : codeAddress;
+
+        Coin endowment = new Coin(msg.getEndowment().getData());
+        Coin senderBalance = track.getBalance(senderAddress);
+        if (senderBalance.compareTo(endowment) < 0) {
+            stackPushZero(); // todo(fedejinich) remove
+            refundGas(msg.getGas().longValue(), "refund gas from message call");
+            cleanReturnDataBuffer(activations);
+
+            return false;
+        }
+
+        byte[] data = memoryChunk(msg.getInDataOffs().intValue(), msg.getInDataSize().intValue());
+
+        // Charge for endowment - is not reversible by rollback
+        track.transfer(senderAddress, contextAddress, new Coin(msg.getEndowment().getData()));
+
+        // we are assuming that transfer is already creating destination account even if the amount is zero
+        if (!track.isContract(codeAddress)) {
+            track.setupContract(codeAddress);
+        }
+
+        if (byTestingSuite()) {
+            // This keeps track of the calls created for a test
+            getResult().addCallCreate(data,
+                    codeAddress.getBytes(),
+                    msg.getGas().longValueSafe(),
+                    msg.getEndowment().getNoLeadZeroesData());
+
+            stackPushOne(); // todo(fedejinich) remove
+
+            return true;
+        }
+
+        // Special initialization for Bridge, Remasc and NativeContract contracts
+        if (contract instanceof Bridge || contract instanceof RemascContract || contract instanceof NativeContract) {
+            // CREATE CALL INTERNAL TRANSACTION
+            InternalTransaction internalTx = addInternalTx(null, getGasLimit(), senderAddress, contextAddress, endowment, EMPTY_BYTE_ARRAY, "call");
+
+            // Propagate the "local call" nature of the originating transaction down to the callee
+            internalTx.setLocalCallTransaction(transaction.isLocalCallTransaction());
+
+            Block executionBlock = blockFactory.newBlock(
+                    blockFactory.getBlockHeaderBuilder()
+                            .setParentHash(getPrevHash().getData())
+                            .setCoinbase(new RskAddress(getCoinbase().getLast20Bytes()))
+                            .setDifficultyFromBytes(getDifficulty().getData())
+                            .setNumber(getNumber().longValue())
+                            .setGasLimit(getGasLimit().getData())
+                            .setTimestamp(getTimestamp().longValue())
+                            .build(),
+                    Collections.emptyList(),
+                    Collections.emptyList()
+            );
+
+            contract.init(internalTx, executionBlock, track, invoke.getBlockStore(), null, null);
+        }
+
+        long requiredGas = contract.getGasForData(data);
+        if (requiredGas > msg.getGas().longValue()) {
+            refundGas(0, "call pre-compiled"); //matches cpp logic
+            track.rollback();
+            cleanReturnDataBuffer(activations);
+
+            stackPushZero(); // todo(fedejinich) remove
+
+            return false;
+        }
+
+        // todo(fedejinich) refunds lo que le sobro
+        refundGas(msg.getGas().longValue() - requiredGas, "call pre-compiled");
+
+        byte[] out = contract.execute(data);
+        if (getActivations().isActive(ConsensusRule.RSKIP90)) { // todo(fedejinich) rskip90 siempre va a estar activo
+            this.returnDataBuffer = out;
+        }
+
+        // Avoid saving null returns to memory and limit the memory it can use.
+        // If we're behind RSK150 activation, don't care about the null return, just save.
+        if (getActivations().isActive(ConsensusRule.RSKIP150) && out != null) { // todo(fedejinich) rskip150 siempre va a estar activo
+            memorySaveLimited(msg.getOutDataOffs().intValue(), out, msg.getOutDataSize().intValue());
+        } else if (!getActivations().isActive(ConsensusRule.RSKIP150)) { // todo(fedejinich) rskip150 siempre va a estar activo
+            memorySave(msg.getOutDataOffs().intValue(), out);
+        }
+        track.commit();
+
+        stackPushOne(); //todo(fedejinicqh) remove
+
+        return true;
     }
 
     private boolean byTestingSuite() {
