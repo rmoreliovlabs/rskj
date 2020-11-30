@@ -29,6 +29,7 @@ import org.ethereum.core.Block;
 import org.ethereum.core.Transaction;
 import org.ethereum.crypto.ECKey;
 import org.ethereum.vm.PrecompiledContracts;
+import org.ethereum.vm.exception.PrecompiledContractException;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -239,7 +240,7 @@ public abstract class PrecompiledContractPerformanceTestCase {
             TxBuilder txBuilder,
             HeightProvider heightProvider,
             int executionIndex,
-            ResultCallback resultCallback) {
+            ResultCallback resultCallback) throws PrecompiledContractException {
 
         ExecutionTracker executionInfo = new ExecutionTracker(thread);
 
@@ -273,7 +274,7 @@ public abstract class PrecompiledContractPerformanceTestCase {
             TxBuilder txBuilder,
             HeightProvider heightProvider,
             ExecutionStats stats,
-            ResultCallback resultCallback) {
+            ResultCallback resultCallback) throws PrecompiledContractException {
 
         for (int i = 0; i < times; i++) {
             printLine(String.format("%s %d/%d", name, i + 1, times));
