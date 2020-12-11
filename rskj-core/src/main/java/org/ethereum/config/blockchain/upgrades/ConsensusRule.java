@@ -56,6 +56,7 @@ public enum ConsensusRule {
     RSKIP174("rskip174"),
     RSKIP180("rskip180"),
     RSKIPUMM("rskipUMM"),
+    // TODO: change activation code RSKIPNEW.
     RSKIPNEW("rskipNEW"); //Handle error in Precompile Contracts execution.
 
     private String configKey;
