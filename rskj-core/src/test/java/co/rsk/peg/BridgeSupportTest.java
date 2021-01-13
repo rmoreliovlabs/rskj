@@ -47,6 +47,7 @@ import co.rsk.bitcoinj.core.UTXO;
 import co.rsk.bitcoinj.core.VerificationException;
 import co.rsk.bitcoinj.crypto.TransactionSignature;
 import co.rsk.bitcoinj.params.RegTestParams;
+import co.rsk.bitcoinj.script.FastBridgeRedeemScriptParser;
 import co.rsk.bitcoinj.script.RedeemScriptParser;
 import co.rsk.bitcoinj.script.Script;
 import co.rsk.bitcoinj.script.ScriptBuilder;
@@ -6551,7 +6552,7 @@ public class BridgeSupportTest {
             activations
         );
 
-        Script fastBridgeRedeemScript = RedeemScriptParser.createMultiSigFastBridgeRedeemScript(
+        Script fastBridgeRedeemScript = FastBridgeRedeemScriptParser.createMultiSigFastBridgeRedeemScript(
             bridgeConstants.getGenesisFederation().getRedeemScript(),
             PegTestUtils.createHash(1)
         );
@@ -6589,7 +6590,7 @@ public class BridgeSupportTest {
             activations
         );
 
-        Script fastBridgeRedeemScript = RedeemScriptParser.createMultiSigFastBridgeRedeemScript(
+        Script fastBridgeRedeemScript = FastBridgeRedeemScriptParser.createMultiSigFastBridgeRedeemScript(
             bridgeConstants.getGenesisFederation().getRedeemScript(),
             Sha256Hash.of(new byte[1])
         );
@@ -6657,7 +6658,7 @@ public class BridgeSupportTest {
         Federation fed = bridgeConstants.getGenesisFederation();
         Keccak256 derivationHash = PegTestUtils.createHash3(1);
 
-        Script fastBridgeRedeemScript = RedeemScriptParser.createMultiSigFastBridgeRedeemScript(
+        Script fastBridgeRedeemScript = FastBridgeRedeemScriptParser.createMultiSigFastBridgeRedeemScript(
             fed.getRedeemScript(),
             Sha256Hash.wrap(derivationHash.getBytes())
         );
@@ -6813,7 +6814,7 @@ public class BridgeSupportTest {
     }
 
     private Address getFastBridgeFederationAddress() {
-        Script fastBridgeRedeemScript = RedeemScriptParser.createMultiSigFastBridgeRedeemScript(
+        Script fastBridgeRedeemScript = FastBridgeRedeemScriptParser.createMultiSigFastBridgeRedeemScript(
             bridgeConstants.getGenesisFederation().getRedeemScript(),
             PegTestUtils.createHash(1)
         );
