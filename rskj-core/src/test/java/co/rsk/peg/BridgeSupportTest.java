@@ -48,6 +48,8 @@ import co.rsk.bitcoinj.core.VerificationException;
 import co.rsk.bitcoinj.crypto.TransactionSignature;
 import co.rsk.bitcoinj.params.RegTestParams;
 import co.rsk.bitcoinj.script.FastBridgeRedeemScriptParser;
+import co.rsk.bitcoinj.script.RedeemScriptParser;
+import co.rsk.bitcoinj.script.RedeemScriptParserFactory;
 import co.rsk.bitcoinj.script.Script;
 import co.rsk.bitcoinj.script.ScriptBuilder;
 import co.rsk.bitcoinj.script.ScriptChunk;
@@ -146,6 +148,73 @@ public class BridgeSupportTest {
         btcParams = bridgeConstants.getBtcParams();
         activationsBeforeForks = ActivationConfigsForTest.genesis().forBlock(0);
         activationsAfterForks = ActivationConfigsForTest.all().forBlock(0);
+    }
+
+    @Test
+    public void validate_erp_redeem_script() {
+        // Create 2/3 federation
+        BtcECKey ecKey1 = BtcECKey.fromPrivate(BigInteger.valueOf(100));
+        BtcECKey ecKey2 = BtcECKey.fromPrivate(BigInteger.valueOf(200));
+        BtcECKey ecKey3 = BtcECKey.fromPrivate(BigInteger.valueOf(300));
+        List<BtcECKey> defaultFederationKeys = Arrays.asList(ecKey1, ecKey2, ecKey3);
+        Federation federation = getFederation(bridgeConstants, defaultFederationKeys);
+
+        // Get 3 more ecKeys for ERP federation
+        BtcECKey ecKey4 = BtcECKey.fromPrivate(BigInteger.valueOf(400));
+        BtcECKey ecKey5 = BtcECKey.fromPrivate(BigInteger.valueOf(500));
+        BtcECKey ecKey6 = BtcECKey.fromPrivate(BigInteger.valueOf(600));
+
+        // Get federation redeemScript
+        Script federationRedeemScript = federation.getRedeemScript();
+
+        // Create ERP federation and get redeemScript
+        List<BtcECKey> erpFedKeys = Arrays.asList(ecKey4, ecKey5, ecKey6);
+        Federation erpFederation = getFederation(bridgeConstants, erpFedKeys);
+        Script erpFedRedeemScript = erpFederation.getRedeemScript();
+        byte[] p = erpFedRedeemScript.getProgram();
+        byte[] pWithoutCheckSig = new byte[p.length -1];
+        System.arraycopy(p, 0, pWithoutCheckSig, 0, p.length - 1);
+
+        // Remove OP_CHECKMULTISIG
+        byte[] program = federationRedeemScript.getProgram();
+        byte[] programWithoutCheckSig = new byte[program.length - 1];
+        System.arraycopy(program, 0, programWithoutCheckSig, 0, program.length - 1);
+
+        byte[] reed = Arrays.copyOf(programWithoutCheckSig, programWithoutCheckSig.length);
+        byte[] notIfPrefix = new byte[1];
+        byte[] opElse = new byte[1];
+
+        notIfPrefix[0] = 0x64;
+        opElse[0] = 0x67;
+
+        byte[] preRedeemElse = new byte[111];
+        int length = 0;
+
+        byte[] preRedeem = new byte[notIfPrefix.length + reed.length + opElse.length + preRedeemElse.length];
+        System.arraycopy(notIfPrefix, 0, preRedeem, 0, notIfPrefix.length);
+        length = notIfPrefix.length;
+        System.arraycopy(reed, 0, preRedeem, notIfPrefix.length, reed.length);
+        length += reed.length;
+        System.arraycopy(opElse, 0, preRedeem, reed.length + 1, opElse.length);
+        length += opElse.length;
+        preRedeem[length] = 0x2;
+        length ++;
+        preRedeem[length] = (byte) 0xe0;
+        length ++;
+        preRedeem[length] = (byte) 0x07;
+        length ++;
+        preRedeem[length] = (byte) 0xb1;
+        length ++;
+        preRedeem[length] = 0x75;
+        length ++;
+        System.arraycopy(pWithoutCheckSig, 0, preRedeem, length, pWithoutCheckSig.length);
+        length += pWithoutCheckSig.length;
+        preRedeem[length] = 0x68;
+        length ++;
+        preRedeem[length] = (byte) (0xae);
+
+        Script r = new Script(preRedeem);
+        r.getChunks();
     }
 
     @Test
