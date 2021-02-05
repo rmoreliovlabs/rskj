@@ -53,6 +53,7 @@ import co.rsk.bitcoinj.script.RedeemScriptParserFactory;
 import co.rsk.bitcoinj.script.Script;
 import co.rsk.bitcoinj.script.ScriptBuilder;
 import co.rsk.bitcoinj.script.ScriptChunk;
+import co.rsk.bitcoinj.script.ScriptOpCodes;
 import co.rsk.bitcoinj.store.BlockStoreException;
 import co.rsk.bitcoinj.wallet.Wallet;
 import co.rsk.blockchain.utils.BlockGenerator;
@@ -150,6 +151,12 @@ public class BridgeSupportTest {
         activationsAfterForks = ActivationConfigsForTest.all().forBlock(0);
     }
 
+    private byte[] removeOpCheckMultisig(byte[] program) {
+        byte[] programWithoutCheckSig = new byte[program.length -1];
+        System.arraycopy(program, 0, programWithoutCheckSig, 0, program.length - 1);
+        return programWithoutCheckSig;
+    }
+
     @Test
     public void validate_erp_redeem_script() {
         // Create 2/3 federation
@@ -164,39 +171,27 @@ public class BridgeSupportTest {
         BtcECKey ecKey5 = BtcECKey.fromPrivate(BigInteger.valueOf(500));
         BtcECKey ecKey6 = BtcECKey.fromPrivate(BigInteger.valueOf(600));
 
-        // Get federation redeemScript
+        // Get federation redeemScript and remove OP_CHECKMULTISIG
         Script federationRedeemScript = federation.getRedeemScript();
+        byte[] fedProgramWithoutCheckSig = removeOpCheckMultisig(federationRedeemScript.getProgram());
 
-        // Create ERP federation and get redeemScript
+        // Create ERP federation and remove OP_CHECKMULTISIG from redeemScript
         List<BtcECKey> erpFedKeys = Arrays.asList(ecKey4, ecKey5, ecKey6);
         Federation erpFederation = getFederation(bridgeConstants, erpFedKeys);
         Script erpFedRedeemScript = erpFederation.getRedeemScript();
-        byte[] p = erpFedRedeemScript.getProgram();
-        byte[] pWithoutCheckSig = new byte[p.length -1];
-        System.arraycopy(p, 0, pWithoutCheckSig, 0, p.length - 1);
+        byte[] erpProgramWithoutCheckSig = removeOpCheckMultisig(erpFedRedeemScript.getProgram());
 
-        // Remove OP_CHECKMULTISIG
-        byte[] program = federationRedeemScript.getProgram();
-        byte[] programWithoutCheckSig = new byte[program.length - 1];
-        System.arraycopy(program, 0, programWithoutCheckSig, 0, program.length - 1);
-
-        byte[] reed = Arrays.copyOf(programWithoutCheckSig, programWithoutCheckSig.length);
-        byte[] notIfPrefix = new byte[1];
-        byte[] opElse = new byte[1];
-
-        notIfPrefix[0] = 0x64;
-        opElse[0] = 0x67;
-
+        byte[] reed = Arrays.copyOf(fedProgramWithoutCheckSig, fedProgramWithoutCheckSig.length);
         byte[] preRedeemElse = new byte[111];
         int length = 0;
 
-        byte[] preRedeem = new byte[notIfPrefix.length + reed.length + opElse.length + preRedeemElse.length];
-        System.arraycopy(notIfPrefix, 0, preRedeem, 0, notIfPrefix.length);
-        length = notIfPrefix.length;
-        System.arraycopy(reed, 0, preRedeem, notIfPrefix.length, reed.length);
+        byte[] preRedeem = new byte[1 + reed.length + 1 + preRedeemElse.length];
+        preRedeem[length] = 0x64;
+        length ++;
+        System.arraycopy(reed, 0, preRedeem, length, reed.length);
         length += reed.length;
-        System.arraycopy(opElse, 0, preRedeem, reed.length + 1, opElse.length);
-        length += opElse.length;
+        preRedeem[length] = 0x67;
+        length ++;
         preRedeem[length] = 0x2;
         length ++;
         preRedeem[length] = (byte) 0xe0;
@@ -207,14 +202,83 @@ public class BridgeSupportTest {
         length ++;
         preRedeem[length] = 0x75;
         length ++;
-        System.arraycopy(pWithoutCheckSig, 0, preRedeem, length, pWithoutCheckSig.length);
-        length += pWithoutCheckSig.length;
+        System.arraycopy(erpProgramWithoutCheckSig, 0, preRedeem, length, erpProgramWithoutCheckSig.length);
+        length += erpProgramWithoutCheckSig.length;
         preRedeem[length] = 0x68;
         length ++;
         preRedeem[length] = (byte) (0xae);
 
-        Script r = new Script(preRedeem);
-        r.getChunks();
+        Script redeemScript = new Script(preRedeem);
+        byte[] scriptPubKey = HashUtil.ripemd160(Sha256Hash.hash(redeemScript.getProgram()));
+
+        NetworkParameters networkParameters = NetworkParameters.fromID(NetworkParameters.ID_REGTEST);
+
+        Address btcAddress = new Address(
+            networkParameters,
+            networkParameters.getP2SHHeader(),
+            scriptPubKey
+        );
+
+        Assert.assertNotEquals(federation.getAddress(), btcAddress);
+
+        BtcTransaction fundTx = new BtcTransaction(networkParameters, Hex.decode("0200000005a6"
+            + "319c15cf7d9b8c24ab16465e38629caf4ec5ebf5c7b44037ec843a7bfd1fc0000000004847304402207"
+            + "d95057a168b8a7e0108b86bf8b8e246107f53c896fb1f6b52d49e3822c633e4022075d23d3ab78b48cc"
+            + "99475d7a24d05d7ef62cf79ad4913a35c6414b19c3ce623d01feffffff19a92a51876eee2d9ffd4fb6b"
+            + "d668486994c81cb14219070a75ace0ea265d343000000004847304402200d79a2a402dc5cd6ae121e80"
+            + "b2b4e0973ad5a4138df7a80aefad49f9b5cfd33d02202cc9434837ca535d70c2151fa1745391d7a5d6a"
+            + "47f8a71bc7d53332c2f1bdae901feffffff4be4000fd990d476749299034cd9922f4489c795ed9c8d3d"
+            + "0c4cbb303fccb52000000000484730440220044511b143747db7bbb2d68483d515afd2a371ec2c12ccd"
+            + "4eab9a01430fd031c0220476ee9c50711467c736de012c0c93dfa1eaede87054871da7ce63cab878324f"
+            + "901feffffffbc189c62e4160378bf9ce2b57756146099ffee2f1577efc3f90b5c260eee42e100000000"
+            + "4847304402201cd8fd4da1a608eda1ffb19afe2159952745b46ac227de7d60455f6879f3415402205a6"
+            + "d08f402df494f6d87bdf4ba23f8bc9f8e785d2aa270e0ba948a7eab5b1dc901feffffff93e1b1ad63fc"
+            + "4e586685595b221b8f82305b94166f262cd15dc20e243995ed71000000004847304402202300568e00b"
+            + "313c9da34f304fb8c9fe84c4f9400eb12bd5826789177254b12a702201db9f5955bdf3b6259bcfed0cb"
+            + "3920564ca2c1e894720cdae4ee62482b904bb401feffffff0200e1f5050000000017a91445fa3abca73"
+            + "61662e62f502a329503b4feed03cd87eaeb13000000000017a9142a6dfdc53490c83f3dd49cf9c40fb0"
+            + "7ec7f17b398746080000")
+        );
+
+        BtcTransaction spendTx = new BtcTransaction(networkParameters);
+        spendTx.addInput(fundTx.getOutput(0));
+        spendTx.addOutput(Coin.COIN, federation.getAddress());
+
+        // Create signatures
+        Sha256Hash sigHash = spendTx.hashForSignature(0, redeemScript, BtcTransaction.SigHash.ALL, false);
+        BtcECKey.ECDSASignature sign1 = ecKey1.sign(sigHash);
+        BtcECKey.ECDSASignature sign2 = ecKey2.sign(sigHash);
+        TransactionSignature txSig = new TransactionSignature(sign1, BtcTransaction.SigHash.ALL, false);
+        byte[] txSigEncoded = txSig.encodeToBitcoin();
+        txSig = new TransactionSignature(sign2, BtcTransaction.SigHash.ALL, false);
+        byte[] txSigEncoded2 = txSig.encodeToBitcoin();
+
+        // Create input scripts
+//        ScriptBuilder scriptBuilder = new ScriptBuilder();
+//        List<ScriptChunk> scriptChunkList = new ArrayList<>();
+//        scriptBuilder.addChunk(new ScriptChunk(ScriptOpCodes.OP_0, null));
+//        scriptBuilder.addChunk(new ScriptChunk(ScriptOpCodes.OP_0, null));
+//        scriptBuilder.addChunk(new ScriptChunk(txSigEncoded.length, txSigEncoded));
+//        scriptBuilder.addChunk(new ScriptChunk(txSigEncoded2.length, txSigEncoded2));
+//        scriptBuilder.addChunk(new ScriptChunk(redeemScript.getProgram().length, redeemScript.getProgram()));
+
+//        byte[] inputScriptBytes = new byte[2 + redeemScript.getProgram().length + txSigEncoded.length * 2];
+//        int i = 0;
+//        inputScriptBytes[i] = 0x00;
+//        i ++;
+//        inputScriptBytes[i] = 0x00;
+//        i ++;
+//        System.arraycopy(txSigEncoded, 0, inputScriptBytes, i, txSigEncoded.length);
+//        i += txSigEncoded.length;
+//        System.arraycopy(txSigEncoded2, 0, inputScriptBytes, i, txSigEncoded2.length);
+//        i += txSigEncoded2.length;
+//        System.arraycopy(redeemScript.getProgram(), 0, inputScriptBytes, i, redeemScript.getProgram().length);
+//
+//        Script inputScript = scriptBuilder.build();
+//
+//        spendTx.getInput(0).setScriptSig(inputScript);
+//        byte[] result = spendTx.bitcoinSerialize();
+//        int a = result.length;
     }
 
     @Test
