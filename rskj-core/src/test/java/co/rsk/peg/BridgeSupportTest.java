@@ -151,10 +151,14 @@ public class BridgeSupportTest {
         activationsAfterForks = ActivationConfigsForTest.all().forBlock(0);
     }
 
-    private byte[] removeOpCheckMultisig(byte[] program) {
-        byte[] programWithoutCheckSig = new byte[program.length -1];
-        System.arraycopy(program, 0, programWithoutCheckSig, 0, program.length - 1);
-        return programWithoutCheckSig;
+    private List<ScriptChunk> removeOpCheckMultisig(Script redeemScript) {
+        List<ScriptChunk> chunksWithoutCheckMultisig = new ArrayList<>();
+        chunksWithoutCheckMultisig.addAll(redeemScript.getChunks());
+
+        // Remove the last element that represents CHECKMULTISIG op code
+        chunksWithoutCheckMultisig.remove(chunksWithoutCheckMultisig.size() - 1);
+
+        return chunksWithoutCheckMultisig;
     }
 
     @Test
@@ -163,52 +167,35 @@ public class BridgeSupportTest {
         BtcECKey ecKey1 = BtcECKey.fromPrivate(BigInteger.valueOf(100));
         BtcECKey ecKey2 = BtcECKey.fromPrivate(BigInteger.valueOf(200));
         BtcECKey ecKey3 = BtcECKey.fromPrivate(BigInteger.valueOf(300));
+
         List<BtcECKey> defaultFederationKeys = Arrays.asList(ecKey1, ecKey2, ecKey3);
-        Federation federation = getFederation(bridgeConstants, defaultFederationKeys);
+        Federation defaultFederation = getFederation(bridgeConstants, defaultFederationKeys);
+
+        // Get default federation redeemScript and remove OP_CHECKMULTISIG
+        List<ScriptChunk> defaultFederationRedeemScriptChunksWithoutCheckMultisig = removeOpCheckMultisig(defaultFederation.getRedeemScript());
 
         // Get 3 more ecKeys for ERP federation
         BtcECKey ecKey4 = BtcECKey.fromPrivate(BigInteger.valueOf(400));
         BtcECKey ecKey5 = BtcECKey.fromPrivate(BigInteger.valueOf(500));
         BtcECKey ecKey6 = BtcECKey.fromPrivate(BigInteger.valueOf(600));
 
-        // Get federation redeemScript and remove OP_CHECKMULTISIG
-        Script federationRedeemScript = federation.getRedeemScript();
-        byte[] fedProgramWithoutCheckSig = removeOpCheckMultisig(federationRedeemScript.getProgram());
-
         // Create ERP federation and remove OP_CHECKMULTISIG from redeemScript
         List<BtcECKey> erpFedKeys = Arrays.asList(ecKey4, ecKey5, ecKey6);
         Federation erpFederation = getFederation(bridgeConstants, erpFedKeys);
-        Script erpFedRedeemScript = erpFederation.getRedeemScript();
-        byte[] erpProgramWithoutCheckSig = removeOpCheckMultisig(erpFedRedeemScript.getProgram());
+        List<ScriptChunk> erpFedRedeemScriptChunksWithoutCheckMultisig = removeOpCheckMultisig(erpFederation.getRedeemScript());
 
-        byte[] reed = Arrays.copyOf(fedProgramWithoutCheckSig, fedProgramWithoutCheckSig.length);
-        byte[] preRedeemElse = new byte[111];
-        int length = 0;
+        ScriptBuilder scriptBuilder = new ScriptBuilder();
+        Script redeemScript = scriptBuilder.op(ScriptOpCodes.OP_NOTIF)
+            .addChunks(defaultFederationRedeemScriptChunksWithoutCheckMultisig)
+            .op(ScriptOpCodes.OP_ELSE)
+            .data(Hex.decode("e007"))
+            .op(ScriptOpCodes.OP_CHECKLOCKTIMEVERIFY)
+            .op(ScriptOpCodes.OP_DROP)
+            .addChunks(erpFedRedeemScriptChunksWithoutCheckMultisig)
+            .op(ScriptOpCodes.OP_ENDIF)
+            .op(ScriptOpCodes.OP_CHECKMULTISIG)
+            .build();
 
-        byte[] preRedeem = new byte[1 + reed.length + 1 + preRedeemElse.length];
-        preRedeem[length] = ScriptOpCodes.OP_NOTIF;
-        length ++;
-        System.arraycopy(reed, 0, preRedeem, length, reed.length);
-        length += reed.length;
-        preRedeem[length] = ScriptOpCodes.OP_ELSE;
-        length ++;
-        preRedeem[length] = 0x2;
-        length ++;
-        preRedeem[length] = (byte) 0xe0;
-        length ++;
-        preRedeem[length] = (byte) 0x07;
-        length ++;
-        preRedeem[length] = (byte) ScriptOpCodes.OP_CHECKLOCKTIMEVERIFY;
-        length ++;
-        preRedeem[length] = ScriptOpCodes.OP_DROP;
-        length ++;
-        System.arraycopy(erpProgramWithoutCheckSig, 0, preRedeem, length, erpProgramWithoutCheckSig.length);
-        length += erpProgramWithoutCheckSig.length;
-        preRedeem[length] = 0x68;
-        length ++;
-        preRedeem[length] = (byte) ScriptOpCodes.OP_CHECKMULTISIG;
-
-        Script redeemScript = new Script(preRedeem);
         byte[] scriptPubKey = HashUtil.ripemd160(Sha256Hash.hash(redeemScript.getProgram()));
 
         NetworkParameters networkParameters = NetworkParameters.fromID(NetworkParameters.ID_REGTEST);
@@ -219,7 +206,7 @@ public class BridgeSupportTest {
             scriptPubKey
         );
 
-        Assert.assertNotEquals(federation.getAddress(), btcAddress);
+        Assert.assertNotEquals(defaultFederation.getAddress(), btcAddress);
 
         BtcTransaction fundTx = new BtcTransaction(networkParameters, Hex.decode("0200000005a6"
             + "319c15cf7d9b8c24ab16465e38629caf4ec5ebf5c7b44037ec843a7bfd1fc0000000004847304402207"
@@ -242,7 +229,7 @@ public class BridgeSupportTest {
 
         BtcTransaction spendTx = new BtcTransaction(networkParameters);
         spendTx.addInput(fundTx.getOutput(0));
-        spendTx.addOutput(Coin.COIN, federation.getAddress());
+        spendTx.addOutput(Coin.COIN, defaultFederation.getAddress());
 
         // Create signatures
         Sha256Hash sigHash = spendTx.hashForSignature(0, redeemScript, BtcTransaction.SigHash.ALL, false);
@@ -253,33 +240,17 @@ public class BridgeSupportTest {
         txSig = new TransactionSignature(sign2, BtcTransaction.SigHash.ALL, false);
         byte[] txSigEncoded2 = txSig.encodeToBitcoin();
 
-        // Create input scripts
-//        ScriptBuilder scriptBuilder = new ScriptBuilder();
-//        List<ScriptChunk> scriptChunkList = new ArrayList<>();
-//        scriptBuilder.addChunk(new ScriptChunk(ScriptOpCodes.OP_0, null));
-//        scriptBuilder.addChunk(new ScriptChunk(ScriptOpCodes.OP_0, null));
-//        scriptBuilder.addChunk(new ScriptChunk(txSigEncoded.length, txSigEncoded));
-//        scriptBuilder.addChunk(new ScriptChunk(txSigEncoded2.length, txSigEncoded2));
-//        scriptBuilder.addChunk(new ScriptChunk(redeemScript.getProgram().length, redeemScript.getProgram()));
+        scriptBuilder = new ScriptBuilder();
+        Script inputScript = scriptBuilder.number(0)
+            .number(0)
+            .data(txSigEncoded)
+            .data(txSigEncoded2)
+            .addChunks(redeemScript.getChunks())
+            .build();
 
-        byte[] inputScriptBytes = new byte[5 + redeemScript.getProgram().length + txSigEncoded.length * 2];
-        int i = 0;
-        inputScriptBytes[i] = ScriptOpCodes.OP_0;
-        i ++;
-        inputScriptBytes[i] = ScriptOpCodes.OP_0;
-        i ++;
-        //inputScriptBytes[i] = txSigEncoded.length;
-        System.arraycopy(txSigEncoded, 0, inputScriptBytes, i, txSigEncoded.length);
-        i += txSigEncoded.length;
-        System.arraycopy(txSigEncoded2, 0, inputScriptBytes, i, txSigEncoded2.length);
-        i += txSigEncoded2.length;
-        System.arraycopy(redeemScript.getProgram(), 0, inputScriptBytes, i, redeemScript.getProgram().length);
-
-//        Script inputScript = scriptBuilder.build();
-//
-//        spendTx.getInput(0).setScriptSig(inputScript);
-//        byte[] result = spendTx.bitcoinSerialize();
-//        int a = result.length;
+        spendTx.getInput(0).setScriptSig(inputScript);
+        byte[] result = spendTx.bitcoinSerialize();
+        int a = result.length;
     }
 
     @Test
