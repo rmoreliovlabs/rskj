@@ -186,11 +186,11 @@ public class BridgeSupportTest {
         int length = 0;
 
         byte[] preRedeem = new byte[1 + reed.length + 1 + preRedeemElse.length];
-        preRedeem[length] = 0x64;
+        preRedeem[length] = ScriptOpCodes.OP_NOTIF;
         length ++;
         System.arraycopy(reed, 0, preRedeem, length, reed.length);
         length += reed.length;
-        preRedeem[length] = 0x67;
+        preRedeem[length] = ScriptOpCodes.OP_ELSE;
         length ++;
         preRedeem[length] = 0x2;
         length ++;
@@ -198,15 +198,15 @@ public class BridgeSupportTest {
         length ++;
         preRedeem[length] = (byte) 0x07;
         length ++;
-        preRedeem[length] = (byte) 0xb1;
+        preRedeem[length] = (byte) ScriptOpCodes.OP_CHECKLOCKTIMEVERIFY;
         length ++;
-        preRedeem[length] = 0x75;
+        preRedeem[length] = ScriptOpCodes.OP_DROP;
         length ++;
         System.arraycopy(erpProgramWithoutCheckSig, 0, preRedeem, length, erpProgramWithoutCheckSig.length);
         length += erpProgramWithoutCheckSig.length;
         preRedeem[length] = 0x68;
         length ++;
-        preRedeem[length] = (byte) (0xae);
+        preRedeem[length] = (byte) ScriptOpCodes.OP_CHECKMULTISIG;
 
         Script redeemScript = new Script(preRedeem);
         byte[] scriptPubKey = HashUtil.ripemd160(Sha256Hash.hash(redeemScript.getProgram()));
@@ -262,18 +262,19 @@ public class BridgeSupportTest {
 //        scriptBuilder.addChunk(new ScriptChunk(txSigEncoded2.length, txSigEncoded2));
 //        scriptBuilder.addChunk(new ScriptChunk(redeemScript.getProgram().length, redeemScript.getProgram()));
 
-//        byte[] inputScriptBytes = new byte[2 + redeemScript.getProgram().length + txSigEncoded.length * 2];
-//        int i = 0;
-//        inputScriptBytes[i] = 0x00;
-//        i ++;
-//        inputScriptBytes[i] = 0x00;
-//        i ++;
-//        System.arraycopy(txSigEncoded, 0, inputScriptBytes, i, txSigEncoded.length);
-//        i += txSigEncoded.length;
-//        System.arraycopy(txSigEncoded2, 0, inputScriptBytes, i, txSigEncoded2.length);
-//        i += txSigEncoded2.length;
-//        System.arraycopy(redeemScript.getProgram(), 0, inputScriptBytes, i, redeemScript.getProgram().length);
-//
+        byte[] inputScriptBytes = new byte[5 + redeemScript.getProgram().length + txSigEncoded.length * 2];
+        int i = 0;
+        inputScriptBytes[i] = ScriptOpCodes.OP_0;
+        i ++;
+        inputScriptBytes[i] = ScriptOpCodes.OP_0;
+        i ++;
+        //inputScriptBytes[i] = txSigEncoded.length;
+        System.arraycopy(txSigEncoded, 0, inputScriptBytes, i, txSigEncoded.length);
+        i += txSigEncoded.length;
+        System.arraycopy(txSigEncoded2, 0, inputScriptBytes, i, txSigEncoded2.length);
+        i += txSigEncoded2.length;
+        System.arraycopy(redeemScript.getProgram(), 0, inputScriptBytes, i, redeemScript.getProgram().length);
+
 //        Script inputScript = scriptBuilder.build();
 //
 //        spendTx.getInput(0).setScriptSig(inputScript);
