@@ -30,9 +30,11 @@ import static org.mockito.Mockito.when;
 
 import co.rsk.bitcoinj.core.Address;
 import co.rsk.bitcoinj.core.AddressFormatException;
+import co.rsk.bitcoinj.core.Base58;
 import co.rsk.bitcoinj.core.BtcBlock;
 import co.rsk.bitcoinj.core.BtcECKey;
 import co.rsk.bitcoinj.core.BtcTransaction;
+import co.rsk.bitcoinj.core.BtcTransaction.SigHash;
 import co.rsk.bitcoinj.core.Coin;
 import co.rsk.bitcoinj.core.Context;
 import co.rsk.bitcoinj.core.NetworkParameters;
@@ -188,8 +190,8 @@ public class BridgeSupportTest {
         Script redeemScript = scriptBuilder.op(ScriptOpCodes.OP_NOTIF)
             .addChunks(defaultFederationRedeemScriptChunksWithoutCheckMultisig)
             .op(ScriptOpCodes.OP_ELSE)
-            .data(Hex.decode("e007"))
-            .op(ScriptOpCodes.OP_CHECKLOCKTIMEVERIFY)
+            .data(Hex.decode("13c7"))
+            .op(ScriptOpCodes.OP_CHECKSEQUENCEVERIFY)
             .op(ScriptOpCodes.OP_DROP)
             .addChunks(erpFedRedeemScriptChunksWithoutCheckMultisig)
             .op(ScriptOpCodes.OP_ENDIF)
@@ -197,39 +199,45 @@ public class BridgeSupportTest {
             .build();
 
         byte[] scriptPubKey = HashUtil.ripemd160(Sha256Hash.hash(redeemScript.getProgram()));
-
         NetworkParameters networkParameters = NetworkParameters.fromID(NetworkParameters.ID_REGTEST);
-
-        Address btcAddress = new Address(
+        Address federationBtcAddress = new Address(
             networkParameters,
             networkParameters.getP2SHHeader(),
             scriptPubKey
         );
+        System.out.println("Federation btc address: " + federationBtcAddress);
+        Assert.assertNotEquals(defaultFederation.getAddress(), federationBtcAddress);
 
-        Assert.assertNotEquals(defaultFederation.getAddress(), btcAddress);
+//        Sha256Hash txid = Sha256Hash.wrap("efea0ff10c6c6056f6770002fdc838386a5382be110f5c5b772b3bf10be7b3ff");
+//        int vout = 0;
+//        String pk = "cVr4vSxfJ94KBRmSSBLMCBUpATTT7MQZPzd8XyWmVknUmDCkxg95";
+//        byte[] decoded = Base58.decode(pk);
+//        // Quitar primer byte (2 caracteres) y los últimos 5 bytes (10 caracteres)
+//
+//        byte[] pkDecoded = new byte[decoded.length-6];
+//        System.arraycopy(decoded, 1, pkDecoded, 0, decoded.length - 6);
+//        //f69abbf927e55fcfcdfe9afa3ca4cee2b92cce731c95ee43ffd36a5ed1142bce
+//
+//        BtcECKey key = BtcECKey.fromPrivate(pkDecoded);
+//        BtcTransaction fundTx = new BtcTransaction(networkParameters);
+//        Script fundTxInputScript = ScriptBuilder.createInputScript(null, key);
+//        fundTx.addInput(txid, vout, fundTxInputScript);
+//        fundTx.addOutput(Coin.COIN, federationBtcAddress);
+//
+//        Sha256Hash fundSigHash = fundTx.hashForSignature(0, fundTxInputScript, SigHash.ALL, false);
+//        BtcECKey.ECDSASignature fundSign = key.sign(fundSigHash);
+//        TransactionSignature fundTxSig = new TransactionSignature(fundSign, BtcTransaction.SigHash.ALL, false);
+//        Script fundTxInputScriptSigned = ScriptBuilder.createInputScript(fundTxSig, key);
+//        fundTx.getInput(0).setScriptSig(fundTxInputScriptSigned);
+//        System.out.println("Fund tx:");
+//        System.out.println(Hex.toHexString(fundTx.bitcoinSerialize()));
 
-        BtcTransaction fundTx = new BtcTransaction(networkParameters, Hex.decode("0200000005a6"
-            + "319c15cf7d9b8c24ab16465e38629caf4ec5ebf5c7b44037ec843a7bfd1fc0000000004847304402207"
-            + "d95057a168b8a7e0108b86bf8b8e246107f53c896fb1f6b52d49e3822c633e4022075d23d3ab78b48cc"
-            + "99475d7a24d05d7ef62cf79ad4913a35c6414b19c3ce623d01feffffff19a92a51876eee2d9ffd4fb6b"
-            + "d668486994c81cb14219070a75ace0ea265d343000000004847304402200d79a2a402dc5cd6ae121e80"
-            + "b2b4e0973ad5a4138df7a80aefad49f9b5cfd33d02202cc9434837ca535d70c2151fa1745391d7a5d6a"
-            + "47f8a71bc7d53332c2f1bdae901feffffff4be4000fd990d476749299034cd9922f4489c795ed9c8d3d"
-            + "0c4cbb303fccb52000000000484730440220044511b143747db7bbb2d68483d515afd2a371ec2c12ccd"
-            + "4eab9a01430fd031c0220476ee9c50711467c736de012c0c93dfa1eaede87054871da7ce63cab878324f"
-            + "901feffffffbc189c62e4160378bf9ce2b57756146099ffee2f1577efc3f90b5c260eee42e100000000"
-            + "4847304402201cd8fd4da1a608eda1ffb19afe2159952745b46ac227de7d60455f6879f3415402205a6"
-            + "d08f402df494f6d87bdf4ba23f8bc9f8e785d2aa270e0ba948a7eab5b1dc901feffffff93e1b1ad63fc"
-            + "4e586685595b221b8f82305b94166f262cd15dc20e243995ed71000000004847304402202300568e00b"
-            + "313c9da34f304fb8c9fe84c4f9400eb12bd5826789177254b12a702201db9f5955bdf3b6259bcfed0cb"
-            + "3920564ca2c1e894720cdae4ee62482b904bb401feffffff0200e1f5050000000017a91445fa3abca73"
-            + "61662e62f502a329503b4feed03cd87eaeb13000000000017a9142a6dfdc53490c83f3dd49cf9c40fb0"
-            + "7ec7f17b398746080000")
-        );
+        BtcTransaction fundTx = new BtcTransaction(networkParameters, Hex.decode("020000000ade7d0f7d92b10d5e31233298095d8f4364360161b6cc8b80aadc6e78fcd7558d000000004847304402206e8c2a022f17c73aac172b81d2765048538b35c490273c5e52c09a103e38d9b602206b53928ef4fd2fb6750f05d9685f084f0c8d13922798e58d12f7ef69d0a97f0801feffffff5ed36004f45076365137f4e4623c59c746c0aad9492cf40b089e42d04658f983000000004847304402207ee9ebeb5c2a48150a94b952142b627dad933b08b2d7e8ba006d3f69fc6e6d9a02203272e46ac2fb236573c91bd7c103957fa1d6a901d502c5fbb1edd597ed906b7a01feffffff2e2074192ebcf5531a33529b9570e639612a0271ec6d648dbea62deda8312938000000004847304402204871767c3cc77e8af61fb0e10cab5c0ad32bc668446142033b2ec71e09e57ca802207451f3a9f529f0fa88f0c8d374dcea23e0058c9e1bb96080d4527e724ccf405d01feffffff99d342a89f98fadf886002e37ba919c851138df985dd8f58f28fd38d0329975f000000004847304402204d83998d4b6b29d34f72798d5d5a0c646ac94bd182802a68b729839dcdc30d6402206c9a38ee9b464bf1204b54ec80c2e57a16478df607ddaac26485d3333cceda0c01feffffffe0138512338d32882655c3ab64c6be343096486d2ed0ba83f15f7ef3c77e61f10000000048473044022012363bacb6ee0f4b808a969f4c8f677a0da1b07734db39dd72130814a195442a02205601a10a08f7f5544c0eefdc591ef6da1edeb1fd386f7bb850399b091741a0ed01fefffffff589d9b8cc4acd709783ffed5506b2204da3d0a5e5ccdf5c95cd6f11332b053c000000004847304402206b6bcdda308607a06077292d095992c87071ba5206ad178a752af6e2b5ffa85e02206b55725e6ad355d6209adc582323956271132697de84fa4101e3d31a6205252001feffffff446b431491fd848b1f569e1c73976f61606e1286e0e1732b7178f1242d252abc0000000048473044022007146e95406aa1bd2a39bdc18a59451906a5f278bdf313b9b14385b33f189ba30220296b0b700739223e822fd87cf3978d398e8717eb23d586b56f084f28df42fe0201feffffffe7dbdae4613e1924807cf0d0f46feb908fd337571874b8230c497d27adad596700000000484730440220647c779c8e65235bc613965d365b209c540b6d8e6cd221dfae7132a348710b9d022029396ea5caa4111ccc1e7e27928a0ea7779d466720909d9be593dae513d297d801feffffff63a9532b490009d479cbfc79430ef0ae262660386375c623255d2b6c8286c43a0000000048473044022077dad5cf030ef2bcc725bbf009c24c09c34c99369150a460bf0563dea1b06ceb02200d75264840ca92756ea45de47fa4d15b17f622b0238055d01929d00a7861ced801feffffff635483e49272570c0772c4941da1f68691f46858e7f486e86fc9cfd95e021ca5000000004847304402205e8451aea715e432ce7a9633af38a6e088f2fa823434221721a6228eb7213b23022043e0713c9a76984d05ad30a0fcad173258b2dc5fb7e15287d397bcc0e5b3155401feffffff0100e1f5050000000017a91460294c2a1ad6e3674412d221028fde15c184ed0787b84f0000"));
 
         BtcTransaction spendTx = new BtcTransaction(networkParameters);
+        spendTx.setVersion(2);
         spendTx.addInput(fundTx.getOutput(0));
-        spendTx.addOutput(Coin.COIN, defaultFederation.getAddress());
+        spendTx.addOutput(Coin.CENT, defaultFederation.getAddress());
 
         // Create signatures
         Sha256Hash sigHash = spendTx.hashForSignature(0, redeemScript, BtcTransaction.SigHash.ALL, false);
@@ -245,11 +253,14 @@ public class BridgeSupportTest {
             .number(0)
             .data(txSigEncoded)
             .data(txSigEncoded2)
-            .addChunks(redeemScript.getChunks())
+            .data(redeemScript.getProgram())
             .build();
 
         spendTx.getInput(0).setScriptSig(inputScript);
         byte[] result = spendTx.bitcoinSerialize();
+
+        System.out.println("Spend tx:");
+        System.out.println(Hex.toHexString(spendTx.bitcoinSerialize()));
         int a = result.length;
     }
 
