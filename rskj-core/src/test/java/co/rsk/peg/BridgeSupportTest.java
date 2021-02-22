@@ -249,10 +249,11 @@ public class BridgeSupportTest {
         byte[] txSigEncoded2 = txSig.encodeToBitcoin();
 
         scriptBuilder = new ScriptBuilder();
-        Script inputScript = scriptBuilder.number(0)
+        Script inputScript = scriptBuilder
             .number(0)
             .data(txSigEncoded)
             .data(txSigEncoded2)
+            .number(0)
             .data(redeemScript.getProgram())
             .build();
 
