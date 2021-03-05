@@ -1,11 +1,13 @@
 package co.rsk.rpc.netty;
 
 import co.rsk.rpc.OriginValidator;
+import co.rsk.util.IpUtils;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
+import io.netty.util.NetUtil;
 import org.ethereum.rpc.HttpUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +71,7 @@ public class JsonRpcWeb3FilterHandler extends SimpleChannelInboundHandler<FullHt
         String hostHeader = headers.get(HttpHeaders.Names.HOST);
         String parsedHeader = parseHostHeader(hostHeader);
 
-        if (!acceptedHosts.contains(parsedHeader)) {
+        if (!acceptedHosts.contains(parsedHeader) && !isValidIp(parsedHeader)) {
             logger.debug("Invalid header HOST {}", hostHeader);
             response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.BAD_REQUEST);
             ctx.write(response).addListener(ChannelFutureListener.CLOSE);
@@ -101,6 +103,10 @@ public class JsonRpcWeb3FilterHandler extends SimpleChannelInboundHandler<FullHt
         }
 
         ctx.write(response).addListener(ChannelFutureListener.CLOSE);
+    }
+
+    private boolean isValidIp(String ip) {
+        return NetUtil.isValidIpV6Address(ip) || NetUtil.isValidIpV4Address(ip);
     }
 
     private String parseHostHeader(String hostHeader) {

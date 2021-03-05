@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.squareup.okhttp.*;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.ethereum.rpc.Web3;
+import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -16,6 +17,7 @@ import javax.net.ssl.*;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.*;
@@ -57,11 +59,20 @@ public class Web3HttpServerTest {
     @Test
     public void smokeTestUsingValidHost() throws Exception {
         smokeTest(APPLICATION_JSON, "localhost");
+        smokeTest(APPLICATION_JSON, "1.2.3.4");
+        smokeTest(APPLICATION_JSON, "1.2.3.4:4444");
+        smokeTest(APPLICATION_JSON, "254.254.254.254:65535");
+        smokeTest(APPLICATION_JSON, "[::1]:4444");
     }
 
-    @Test(expected = IOException.class)
-    public void smokeTestUsingInvalidHost() throws Exception {
-        smokeTest(APPLICATION_JSON, "evil.com");
+    @Test
+    public void smokeTestUsingInvalidHost() {
+        smokeInvalidHostTest("a.b.c.d");
+        smokeInvalidHostTest("1.2.3.com");
+        smokeInvalidHostTest("1.2.3.4.5");
+        smokeInvalidHostTest("1234");
+        smokeInvalidHostTest("fefe");
+        smokeInvalidHostTest("evil.com");
     }
 
     @Test
@@ -76,6 +87,26 @@ public class Web3HttpServerTest {
     public void smokeTestUsingInvalidHostAndHostName() throws Exception {
         InetAddress google = InetAddress.getByName("www.google.com");
         smokeTest(APPLICATION_JSON, google.getHostAddress(), google, new ArrayList<>());
+    }
+
+    @Test
+    public void smokeOnInvalids() {
+
+    }
+
+    private void smokeInvalidHostTest(String host) {
+        boolean failed = false;
+
+        try {
+            smokeTest(APPLICATION_JSON, host);
+        } catch (IOException e) {
+            e.printStackTrace();
+            failed = true; // an invalid host should produce IOException
+        } catch (Exception e) {
+            Assert.fail("shouldnt happen");
+        }
+
+        Assert.assertTrue(failed);
     }
 
 
