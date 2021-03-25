@@ -28,10 +28,12 @@ import co.rsk.rpc.modules.eth.subscribe.EthSubscribeRequest;
 import co.rsk.rpc.modules.eth.subscribe.EthUnsubscribeRequest;
 import io.netty.buffer.ByteBufHolder;
 import io.netty.buffer.ByteBufInputStream;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.handler.timeout.IdleStateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,15 +50,15 @@ import java.io.IOException;
  */
 
 @Sharable
-public class RskJsonRpcHandler
+public class RskWebSocketsJsonRpcHandler
         extends SimpleChannelInboundHandler<ByteBufHolder>
         implements RskJsonRpcRequestVisitor {
-    private static final Logger LOGGER = LoggerFactory.getLogger(RskJsonRpcHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RskWebSocketsJsonRpcHandler.class);
 
     private final EthSubscriptionNotificationEmitter emitter;
     private final JsonRpcSerializer serializer;
 
-    public RskJsonRpcHandler(EthSubscriptionNotificationEmitter emitter, JsonRpcSerializer serializer) {
+    public RskWebSocketsJsonRpcHandler(EthSubscriptionNotificationEmitter emitter, JsonRpcSerializer serializer) {
         this.emitter = emitter;
         this.serializer = serializer;
     }
@@ -78,7 +80,18 @@ public class RskJsonRpcHandler
         }
 
         // delegate to the next handler if the message can't be matched to a known JSON-RPC request
-        ctx.fireChannelRead(msg.retain());
+        // there's no need to .retain() because is the last handler
+        ctx.fireChannelRead(msg);
+    }
+
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        if (evt instanceof IdleStateEvent) {
+            ctx.channel().close().addListener(ChannelFutureListener.CLOSE);
+            LOGGER.error("Closing channel after timout", evt);
+        } else {
+            super.userEventTriggered(ctx, evt);
+        }
     }
 
     @Override

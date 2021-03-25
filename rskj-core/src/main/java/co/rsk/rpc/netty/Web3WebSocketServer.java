@@ -19,16 +19,16 @@ package co.rsk.rpc.netty;
 
 import co.rsk.config.InternalService;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,9 +38,13 @@ import java.net.InetAddress;
 public class Web3WebSocketServer implements InternalService {
     private static final Logger logger = LoggerFactory.getLogger(Web3WebSocketServer.class);
 
+    public static final int READER_IDLE_TIME_SECONDS = 5;
+    public static final int WRITER_IDLE_TIME_SECONDS = 5;
+    public static final int ALL_IDLE_TIME_SECONDS = 5;
+
     private final InetAddress host;
     private final int port;
-    private final RskJsonRpcHandler jsonRpcHandler;
+    private final RskWebSocketsJsonRpcHandler rskWebSocketsJsonRpcHandler;
     private final JsonRpcWeb3ServerHandler web3ServerHandler;
     private final EventLoopGroup bossGroup;
     private final EventLoopGroup workerGroup;
@@ -49,11 +53,11 @@ public class Web3WebSocketServer implements InternalService {
     public Web3WebSocketServer(
             InetAddress host,
             int port,
-            RskJsonRpcHandler jsonRpcHandler,
+            RskWebSocketsJsonRpcHandler rskWebSocketsJsonRpcHandler,
             JsonRpcWeb3ServerHandler web3ServerHandler) {
         this.host = host;
         this.port = port;
-        this.jsonRpcHandler = jsonRpcHandler;
+        this.rskWebSocketsJsonRpcHandler = rskWebSocketsJsonRpcHandler;
         this.web3ServerHandler = web3ServerHandler;
         this.bossGroup = new NioEventLoopGroup();
         this.workerGroup = new NioEventLoopGroup();
@@ -62,22 +66,24 @@ public class Web3WebSocketServer implements InternalService {
     @Override
     public void start() {
         logger.info("RPC WebSocket enabled");
-        ServerBootstrap b = new ServerBootstrap();
-        b.group(bossGroup, workerGroup)
+        ServerBootstrap serverBootstrap = new ServerBootstrap();
+        serverBootstrap.group(bossGroup, workerGroup)
             .channel(NioServerSocketChannel.class)
-            .childHandler(new ChannelInitializer<SocketChannel>() {
+                .handler(new LoggingHandler(LogLevel.INFO))
+                .childHandler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 protected void initChannel(SocketChannel ch) throws Exception {
                     ChannelPipeline p = ch.pipeline();
                     p.addLast(new HttpServerCodec());
                     p.addLast(new HttpObjectAggregator(1024 * 1024 * 5));
+                    p.addLast(new IdleStateHandler(READER_IDLE_TIME_SECONDS, WRITER_IDLE_TIME_SECONDS, ALL_IDLE_TIME_SECONDS));
                     p.addLast(new WebSocketServerProtocolHandler("/websocket"));
-                    p.addLast(jsonRpcHandler);
+                    p.addLast(rskWebSocketsJsonRpcHandler);
                     p.addLast(web3ServerHandler);
-                    p.addLast(new Web3ResultWebSocketResponseHandler());
                 }
             });
-        webSocketChannel = b.bind(host, port);
+        webSocketChannel = serverBootstrap.bind(host, port);
+
         try {
             webSocketChannel.sync();
         } catch (InterruptedException e) {

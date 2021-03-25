@@ -47,7 +47,7 @@ public class RskJsonRpcHandlerTest {
 
     );
 
-    private RskJsonRpcHandler handler;
+    private RskWebSocketsJsonRpcHandler handler;
     private EthSubscriptionNotificationEmitter emitter;
     private JsonRpcSerializer serializer;
 
@@ -55,7 +55,7 @@ public class RskJsonRpcHandlerTest {
     public void setUp() {
         emitter = mock(EthSubscriptionNotificationEmitter.class);
         serializer = mock(JsonRpcSerializer.class);
-        handler = new RskJsonRpcHandler(emitter, serializer);
+        handler = new RskWebSocketsJsonRpcHandler(emitter, serializer);
     }
 
     @Test
