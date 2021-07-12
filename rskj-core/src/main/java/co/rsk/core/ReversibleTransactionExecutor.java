@@ -25,7 +25,6 @@ import org.ethereum.core.Block;
 import org.ethereum.core.Repository;
 import org.ethereum.core.Transaction;
 import org.ethereum.core.TransactionExecutor;
-import org.ethereum.vm.program.Program;
 import org.ethereum.vm.program.ProgramResult;
 import org.ethereum.vm.program.ProgramResultCallWithValue;
 
@@ -53,17 +52,20 @@ public class ReversibleTransactionExecutor {
             byte[] value,
             byte[] data,
             RskAddress fromAddress) {
-        return this.executeTransaction_gasExactimation(
+
+        TransactionExecutor executor = reversibleExecution(
                 repositoryLocator.snapshotAt(executionBlock.getHeader()),
                 executionBlock,
                 coinbase,
                 gasPrice,
-                gasLimit,
+                gasLimit, 
                 toAddress,
                 value,
                 data,
                 fromAddress
         );
+
+        return  executor.getProgramCallWithValuePerformed() ? new ProgramResultCallWithValue(executor.getResult()) : executor.getResult();
     }
 
     public ProgramResult executeTransaction(
@@ -88,20 +90,7 @@ public class ReversibleTransactionExecutor {
         );
     }
 
-    public ProgramResult executeTransaction_gasExactimation(
-            RepositorySnapshot snapshot,
-            Block executionBlock,
-            RskAddress coinbase,
-            byte[] gasPrice,
-            byte[] gasLimit,
-            byte[] toAddress,
-            byte[] value,
-            byte[] data,
-            RskAddress fromAddress) {
-        TransactionExecutor executor = reversibleExecution(snapshot, executionBlock, coinbase, gasPrice, gasLimit, toAddress, value, data, fromAddress);
 
-        return  executor.getCallWithValuePerformed() ? new ProgramResultCallWithValue(executor.getResult()) : executor.getResult();
-    }
 
     @Deprecated
     public ProgramResult executeTransaction_workaround(

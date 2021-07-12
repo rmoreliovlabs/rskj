@@ -49,9 +49,7 @@ public class ProgramResult {
     private List<InternalTransaction> internalTransactions;
     private List<LogInfo> logInfoList;
     private long futureRefund = 0;
-    private long deductedRefund =0;
-    private boolean callWithValuePerformed;
-
+    private long deductedRefund = 0;
 
     /*
      * for testing runs ,

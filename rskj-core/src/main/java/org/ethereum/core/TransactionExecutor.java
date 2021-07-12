@@ -492,7 +492,7 @@ public class TransactionExecutor {
         return receipt;
     }
 
-    public boolean getCallWithValuePerformed() {
+    public boolean getProgramCallWithValuePerformed() {
         return program.getCallWithValuePerformed();
     }
 
