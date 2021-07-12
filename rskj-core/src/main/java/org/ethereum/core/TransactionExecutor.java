@@ -150,7 +150,7 @@ public class TransactionExecutor {
      * will be ready to run the transaction at the end
      * set readyToExecute = true
      */
-    public boolean init() {
+    private boolean init() {
         basicTxCost = tx.transactionCost(constants, activations);
 
         if (localCall) {
@@ -266,7 +266,7 @@ public class TransactionExecutor {
         return true;
     }
 
-    public void execute() {
+    private void execute() {
         logger.trace("Execute transaction {} {}", toBI(tx.getNonce()), tx.getHash());
 
         if (!localCall) {
@@ -406,7 +406,7 @@ public class TransactionExecutor {
         executionError = err;
     }
 
-    public void go() {
+    private void go() {
         // TODO: transaction call for pre-compiled  contracts
         if (vm == null) {
             cacheTrack.commit();
@@ -496,7 +496,7 @@ public class TransactionExecutor {
         return program.getCallWithValuePerformed();
     }
 
-    public void finalization() {
+    private void finalization() {
         // RSK if local call gas balances must not be changed
         if (localCall) {
             // This should change in the future.
