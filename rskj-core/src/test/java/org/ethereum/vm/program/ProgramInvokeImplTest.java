@@ -2,8 +2,12 @@ package org.ethereum.vm.program;
 
 import org.ethereum.core.Repository;
 import org.ethereum.db.BlockStore;
+import org.ethereum.db.BlockStoreDummy;
+import org.ethereum.jsontestsuite.builder.RepositoryBuilder;
 import org.ethereum.vm.program.invoke.ProgramInvokeImpl;
 import org.junit.Test;
+
+import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -13,40 +17,40 @@ public class ProgramInvokeImplTest {
     @Test
     public void testEquals_OK() {
 
-        byte[] address1 = new byte[1];
-        byte[] origin1 = new byte[2];
-        byte[] caller1 = new byte[3];
-        byte[] balance1 = new byte[4];
-        byte[] gasPrice1 = new byte[5];
-        byte[] gas1 = new byte[6];
-        byte[] callValue1 = new byte[7];
-        byte[] msgData1 = new byte[8];
-        byte[] lastHash1 = new byte[9];
-        byte[] coinbase1 = new byte[10];
+        byte[] address1 = new byte[]{1};
+        byte[] origin1 = new byte[]{2};
+        byte[] caller1 = new byte[]{3};
+        byte[] balance1 = new byte[]{4};
+        byte[] gasPrice1 = new byte[]{5};
+        byte[] gas1 = new byte[]{6};
+        byte[] callValue1 = new byte[]{7};
+        byte[] msgData1 = new byte[]{8};
+        byte[] lastHash1 = new byte[]{9};
+        byte[] coinbase1 = new byte[]{10};
         long timestamp1 = 1;
         long number1 = 2;
         int transactionIndex1 = 3;
-        byte[] difficulty1 = new byte[11];
-        byte[] gasLimit1 = new byte[12];
-        Repository repository1 = null;
-        BlockStore blockStore1 = null;
+        byte[] difficulty1 = new byte[]{11};
+        byte[] gasLimit1 = new byte[]{12};
+        Repository repository1 = RepositoryBuilder.build(Collections.emptyMap());
+        BlockStore blockStore1 = new BlockStoreDummy();
         boolean byTestingSuite1 = true;
 
-        byte[] address2 = new byte[12];
-        byte[] origin2 = new byte[11];
-        byte[] caller2 = new byte[10];
-        byte[] balance2 = new byte[9];
-        byte[] gasPrice2 = new byte[8];
-        byte[] gas2 = new byte[7];
-        byte[] callValue2 = new byte[6];
-        byte[] msgData2 = new byte[5];
-        byte[] lastHash2 = new byte[4];
-        byte[] coinbase2 = new byte[3];
+        byte[] address2 = new byte[]{12};
+        byte[] origin2 = new byte[]{11};
+        byte[] caller2 = new byte[]{10};
+        byte[] balance2 = new byte[]{9};
+        byte[] gasPrice2 = new byte[]{8};
+        byte[] gas2 = new byte[]{7};
+        byte[] callValue2 = new byte[]{6};
+        byte[] msgData2 = new byte[]{5};
+        byte[] lastHash2 = new byte[]{4};
+        byte[] coinbase2 = new byte[]{3};
         long timestamp2 = 3;
         long number2 = 1;
         int transactionIndex2 = 2;
-        byte[] difficulty2 = new byte[2];
-        byte[] gasLimit2 = new byte[1];
+        byte[] difficulty2 = new byte[]{2};
+        byte[] gasLimit2 = new byte[]{1};
         Repository repository2 = null;
         BlockStore blockStore2 = null;
         boolean byTestingSuite2 = false;
@@ -75,6 +79,7 @@ public class ProgramInvokeImplTest {
 
         assertNotEquals(programInvokeA, programInvokeC);
         assertNotEquals(programInvokeA, programInvokeD);
+        assertNotEquals(programInvokeA, programInvokeE);
         assertNotEquals(programInvokeC, programInvokeD);
         assertNotEquals(programInvokeD, programInvokeE);
 
@@ -83,40 +88,40 @@ public class ProgramInvokeImplTest {
     @Test
     public void testHashcode_OK() {
 
-        byte[] address1 = new byte[1];
-        byte[] origin1 = new byte[2];
-        byte[] caller1 = new byte[3];
-        byte[] balance1 = new byte[4];
-        byte[] gasPrice1 = new byte[5];
-        byte[] gas1 = new byte[6];
-        byte[] callValue1 = new byte[7];
-        byte[] msgData1 = new byte[8];
-        byte[] lastHash1 = new byte[9];
-        byte[] coinbase1 = new byte[10];
+        byte[] address1 = new byte[]{1};
+        byte[] origin1 = new byte[]{2};
+        byte[] caller1 = new byte[]{3};
+        byte[] balance1 = new byte[]{4};
+        byte[] gasPrice1 = new byte[]{5};
+        byte[] gas1 = new byte[]{6};
+        byte[] callValue1 = new byte[]{7};
+        byte[] msgData1 = new byte[]{8};
+        byte[] lastHash1 = new byte[]{9};
+        byte[] coinbase1 = new byte[]{10};
         long timestamp1 = 1;
         long number1 = 2;
         int transactionIndex1 = 3;
-        byte[] difficulty1 = new byte[11];
-        byte[] gasLimit1 = new byte[12];
-        Repository repository1 = null;
-        BlockStore blockStore1 = null;
+        byte[] difficulty1 = new byte[]{11};
+        byte[] gasLimit1 = new byte[]{12};
+        Repository repository1 = RepositoryBuilder.build(Collections.emptyMap());
+        BlockStore blockStore1 = new BlockStoreDummy();
         boolean byTestingSuite1 = true;
 
-        byte[] address2 = new byte[12];
-        byte[] origin2 = new byte[11];
-        byte[] caller2 = new byte[10];
-        byte[] balance2 = new byte[9];
-        byte[] gasPrice2 = new byte[8];
-        byte[] gas2 = new byte[7];
-        byte[] callValue2 = new byte[6];
-        byte[] msgData2 = new byte[5];
-        byte[] lastHash2 = new byte[4];
-        byte[] coinbase2 = new byte[3];
+        byte[] address2 = new byte[]{12};
+        byte[] origin2 = new byte[]{11};
+        byte[] caller2 = new byte[]{10};
+        byte[] balance2 = new byte[]{9};
+        byte[] gasPrice2 = new byte[]{8};
+        byte[] gas2 = new byte[]{7};
+        byte[] callValue2 = new byte[]{6};
+        byte[] msgData2 = new byte[]{5};
+        byte[] lastHash2 = new byte[]{4};
+        byte[] coinbase2 = new byte[]{3};
         long timestamp2 = 3;
         long number2 = 1;
         int transactionIndex2 = 2;
-        byte[] difficulty2 = new byte[2];
-        byte[] gasLimit2 = new byte[1];
+        byte[] difficulty2 = new byte[]{2};
+        byte[] gasLimit2 = new byte[]{1};
         Repository repository2 = null;
         BlockStore blockStore2 = null;
         boolean byTestingSuite2 = false;
