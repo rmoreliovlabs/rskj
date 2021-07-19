@@ -263,7 +263,7 @@ public class EthModuleTest {
 
     String anyAddress = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-    private Web3.CallArguments getTransactionParameters() {
+    private CallArguments getTransactionParameters() {
         //
         RskAddress addr1 = new RskAddress(anyAddress);
         BigInteger value = BigInteger.valueOf(0); // do not pass value
@@ -271,15 +271,15 @@ public class EthModuleTest {
         BigInteger gasLimit = BigInteger.valueOf(500000); // large enough
         String data = "0xff";
 
-        Web3.CallArguments args = new Web3.CallArguments();
-        args.from = TypeConverter.toJsonHex(addr1.getBytes());
-        args.to = args.from;  // same account
-        args.data = data;
-        args.gas = TypeConverter.toQuantityJsonHex(gasLimit);
-        args.gasPrice = TypeConverter.toQuantityJsonHex(gasPrice);
-        args.value = value.toString();
+        CallArguments args = new CallArguments();
+        args.setFrom(TypeConverter.toJsonHex(addr1.getBytes()));
+        args.setTo(args.getFrom());  // same account
+        args.setData(data);
+        args.setGas(TypeConverter.toQuantityJsonHex(gasLimit));
+        args.setGasPrice(TypeConverter.toQuantityJsonHex(gasPrice));
+        args.setValue(value.toString());
         // Nonce doesn't matter
-        args.nonce = "0";
+        args.setNonce("0");
 
         return args;
     }
@@ -325,7 +325,7 @@ public class EthModuleTest {
                 )
         );
 
-        Web3.CallArguments args = getTransactionParameters();
+        CallArguments args = getTransactionParameters();
         String gas = eth.estimateGas(args);
         byte[] gasReturned = Hex.decode(gas.substring("0x".length()));
         Assert.assertThat(gasReturned, is(BigIntegers.asUnsignedByteArray(BigInteger.valueOf(42300))));

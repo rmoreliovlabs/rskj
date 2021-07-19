@@ -295,7 +295,7 @@ public class TransactionModuleTest {
         // differentiate between transaction failure (OOG) and success.
         Assert.assertNotEquals(expectedValue,gasLimit);
 
-        Web3.CallArguments args = getContractCallTransactionParameters(method,gasLimit,srcAddr,contractAddress,web3, repository);
+        CallArguments args = getContractCallTransactionParameters(method,gasLimit,srcAddr,contractAddress,web3, repository);
         String gas = web3.eth_estimateGas(args);
         byte[] gasReturnedBytes = Hex.decode(gas.substring("0x".length()));
         BigInteger gasReturned =BigIntegers.fromUnsignedByteArray(gasReturnedBytes);
@@ -337,7 +337,7 @@ public class TransactionModuleTest {
 
     private String sendContractCreationTransaction(RskAddress srcaddr,Web3Impl web3, RepositorySnapshot repository) {
 
-        Web3.CallArguments args = getContractCreationTransactionParameters(srcaddr,web3, repository);
+        CallArguments args = getContractCreationTransactionParameters(srcaddr,web3, repository);
 
         return web3.eth_sendTransaction(args);
     }
@@ -388,7 +388,7 @@ public class TransactionModuleTest {
 
     }
     //////////////////////////////// */
-    private Web3.CallArguments getContractCreationTransactionParameters(
+    private CallArguments getContractCreationTransactionParameters(
             RskAddress addr1,Web3Impl web3, RepositorySnapshot repository) {
 
         BigInteger value = BigInteger.valueOf(7);
@@ -396,21 +396,21 @@ public class TransactionModuleTest {
         BigInteger gasLimit = BigInteger.valueOf(500000);
         String data = "0x608060405261001261001760201b60201c565b610096565b6001600080600181526020019081526020016000208190555060026000806002815260200190815260200160002081905550600360008060038152602001908152602001600020819055506004600080600481526020019081526020016000208190555060056000806005815260200190815260200160002081905550565b6102a7806100a56000396000f3fe60806040526004361061004a5760003560e01c8063742392c51461004c5780639a1e180f14610077578063c3cefd361461008e578063d9c55ce114610098578063dfd2d2c2146100af575b005b34801561005857600080fd5b506100616100c6565b6040518082815260200191505060405180910390f35b34801561008357600080fd5b5061008c6100e1565b005b610096610133565b005b3480156100a457600080fd5b506100ad61017d565b005b3480156100bb57600080fd5b506100c46101fc565b005b60008060006001815260200190815260200160002054905090565b3073ffffffffffffffffffffffffffffffffffffffff166108fc60649081150290604051600060405180830381858888f19350505050158015610128573d6000803e3d6000fd5b506101316101fc565b565b3073ffffffffffffffffffffffffffffffffffffffff166108fc60649081150290604051600060405180830381858888f1935050505015801561017a573d6000803e3d6000fd5b50565b6001600080600181526020019081526020016000208190555060026000806002815260200190815260200160002081905550600360008060038152602001908152602001600020819055506004600080600481526020019081526020016000208190555060056000806005815260200190815260200160002081905550565b600080600060018152602001908152602001600020819055506000806000600281526020019081526020016000208190555060008060006003815260200190815260200160002081905550600080600060048152602001908152602001600020819055506000806000600581526020019081526020016000208190555056fea165627a7a72305820545214f6b1b9d3a4928fb579044851ba06a9ff28b7d588b175847b7116d7b7c00029";
 
-        Web3.CallArguments args = new Web3.CallArguments();
-        args.from = TypeConverter.toJsonHex(addr1.getBytes());
-        args.to = ""; // null?
-        args.data = data;
-        args.gas = TypeConverter.toQuantityJsonHex(gasLimit);
-        args.gasPrice = TypeConverter.toQuantityJsonHex(gasPrice);
-        args.value = value.toString();
-        args.nonce = repository.getAccountState(addr1).getNonce().toString();
+        CallArguments args = new CallArguments();
+        args.setFrom(TypeConverter.toJsonHex(addr1.getBytes()));
+        args.setTo(""); // null?
+        args.setData(data);
+        args.setGas(TypeConverter.toQuantityJsonHex(gasLimit));
+        args.setGasPrice(TypeConverter.toQuantityJsonHex(gasPrice));
+        args.setValue(value.toString());
+        args.setNonce(repository.getAccountState(addr1).getNonce().toString());
 
         return args;
     }
     public final int callUnfill =0;
     public final int callCallWithValue = 1;
 
-    private Web3.CallArguments getContractCallTransactionParameters(
+    private CallArguments getContractCallTransactionParameters(
             int methodToCall,int gasLimitInt,RskAddress addr1,RskAddress destContract,Web3Impl web3, RepositorySnapshot repository) {
 
         BigInteger value;
@@ -436,14 +436,14 @@ public class TransactionModuleTest {
             encoded = func.encode();
         }
         data = Hex.toHexString(encoded);
-        Web3.CallArguments args = new Web3.CallArguments();
-        args.from = TypeConverter.toJsonHex(addr1.getBytes());
-        args.to = TypeConverter.toJsonHex(destContract.getBytes());
-        args.data = data;
-        args.gas = TypeConverter.toQuantityJsonHex(gasLimit);
-        args.gasPrice = TypeConverter.toQuantityJsonHex(gasPrice);
-        args.value = value.toString();
-        args.nonce = repository.getAccountState(addr1).getNonce().toString();
+        CallArguments args = new CallArguments();
+        args.setFrom(TypeConverter.toJsonHex(addr1.getBytes()));
+        args.setTo(TypeConverter.toJsonHex(destContract.getBytes()));
+        args.setData(data);
+        args.setGas(TypeConverter.toQuantityJsonHex(gasLimit));
+        args.setGasPrice(TypeConverter.toQuantityJsonHex(gasPrice));
+        args.setValue(value.toString());
+        args.setNonce(repository.getAccountState(addr1).getNonce().toString());
 
         return args;
     }

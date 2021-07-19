@@ -37,10 +37,8 @@ import org.ethereum.rpc.CallArguments;
 import org.ethereum.rpc.TypeConverter;
 import org.ethereum.rpc.converters.CallArgumentsToByteArray;
 import org.ethereum.rpc.exception.RskJsonRpcRequestException;
-import org.ethereum.vm.GasCost;
 import org.ethereum.vm.PrecompiledContracts;
 import org.ethereum.vm.program.ProgramResult;
-import org.ethereum.vm.program.ProgramResultCallWithValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -238,7 +236,7 @@ public class EthModule
         }
     }
 
-    private ProgramResult callConstantGasExactimation(Web3.CallArguments args, Block executionBlock) {
+    private ProgramResult callConstantGasExactimation(CallArguments args, Block executionBlock) {
         CallArgumentsToByteArray hexArgs = new CallArgumentsToByteArray(args);
         return reversibleTransactionExecutor.executeTransactionGasExactimation(
                 executionBlock,
@@ -252,7 +250,7 @@ public class EthModule
         );
     }
 
-    private ProgramResult callConstant(Web3.CallArguments args, Block executionBlock) {
+    private ProgramResult callConstant(CallArguments args, Block executionBlock) {
         CallArgumentsToByteArray hexArgs = new CallArgumentsToByteArray(args);
         return reversibleTransactionExecutor.executeTransaction(
                 executionBlock,
