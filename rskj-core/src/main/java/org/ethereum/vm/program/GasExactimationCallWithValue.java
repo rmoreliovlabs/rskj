@@ -2,8 +2,12 @@ package org.ethereum.vm.program;
 
 import org.ethereum.vm.GasCost;
 
-public class ProgramResultCallWithValue extends ProgramResult {
-    public ProgramResultCallWithValue(ProgramResult result) {
+/**
+ * This kind of ProgramResult it's useful to estimate contract calls with value transfer,
+ * it adds the stipend gas cost to the final gasUsed
+ * */
+public class GasExactimationCallWithValue extends ProgramResult {
+    public GasExactimationCallWithValue(ProgramResult result) {
         this.addDeductedRefund(result.getDeductedRefund());
         this.setGasUsed(result.getGasUsed());
     }

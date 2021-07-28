@@ -26,7 +26,7 @@ import org.ethereum.core.Repository;
 import org.ethereum.core.Transaction;
 import org.ethereum.core.TransactionExecutor;
 import org.ethereum.vm.program.ProgramResult;
-import org.ethereum.vm.program.ProgramResultCallWithValue;
+import org.ethereum.vm.program.GasExactimationCallWithValue;
 
 /**
  * Encapsulates the logic to execute a transaction in an
@@ -65,7 +65,7 @@ public class ReversibleTransactionExecutor {
                 fromAddress
         );
 
-        return  executor.getProgramCallWithValuePerformed() ? new ProgramResultCallWithValue(executor.getResult()) : executor.getResult();
+        return  executor.getProgramCallWithValuePerformed() ? new GasExactimationCallWithValue(executor.getResult()) : executor.getResult();
     }
 
     public ProgramResult executeTransaction(

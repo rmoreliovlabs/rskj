@@ -146,7 +146,18 @@ public class EthModule
     public String estimateGas(CallArguments args) {
         String s = null;
         try {
-            ProgramResult res = callConstantGasExactimation(args, blockchain.getBestBlock());
+            Block bestBlock = blockchain.getBestBlock();
+            CallArgumentsToByteArray hexArgs = new CallArgumentsToByteArray(args);
+            ProgramResult res = reversibleTransactionExecutor.executeTransactionGasExactimation(
+                    bestBlock,
+                    bestBlock.getCoinbase(),
+                    hexArgs.getGasPrice(),
+                    hexArgs.getGasLimit(),
+                    hexArgs.getToAddress(),
+                    hexArgs.getValue(),
+                    hexArgs.getData(),
+                    hexArgs.getFromAddress()
+            );
 
             // IMPORTANT: currently, due to localCall=true argument,
             // res.getDeductedRefund() will always return zero. This is ok.
@@ -156,9 +167,11 @@ public class EthModule
             // gasUsed cannot be greater than the gas passed, which should not
             // be higher than the block gas limit, so we don't expect any overflow
             // in these operations unless the user provides a malicius gasLimit value.
-            long gasUsed = res.getGasUsed();
-            long gasNeeded = gasUsed + res.getDeductedRefund();
+
+            final long gasUsed = res.getGasUsed();
+            final long gasNeeded = gasUsed + res.getDeductedRefund();
             s = TypeConverter.toQuantityJsonHex(gasNeeded);
+
             return s;
         } finally {
             LOGGER.debug("eth_estimateGas(): {}", s);
@@ -234,20 +247,6 @@ public class EthModule
                     throw invalidParamError("invalid blocknumber " + id);
                 }
         }
-    }
-
-    private ProgramResult callConstantGasExactimation(CallArguments args, Block executionBlock) {
-        CallArgumentsToByteArray hexArgs = new CallArgumentsToByteArray(args);
-        return reversibleTransactionExecutor.executeTransactionGasExactimation(
-                executionBlock,
-                executionBlock.getCoinbase(),
-                hexArgs.getGasPrice(),
-                hexArgs.getGasLimit(),
-                hexArgs.getToAddress(),
-                hexArgs.getValue(),
-                hexArgs.getData(),
-                hexArgs.getFromAddress()
-        );
     }
 
     private ProgramResult callConstant(CallArguments args, Block executionBlock) {

@@ -47,36 +47,24 @@ import org.ethereum.core.TransactionPool;
 import org.ethereum.core.TransactionPoolAddResult;
 import org.ethereum.datasource.HashMapDB;
 import org.ethereum.rpc.CallArguments;
-import org.ethereum.core.*;
 import org.ethereum.rpc.TypeConverter;
-import org.ethereum.rpc.Web3;
-import org.ethereum.rpc.Web3Impl;
 import org.ethereum.rpc.exception.RskJsonRpcRequestException;
 import org.ethereum.util.TransactionTestHelper;
 import org.ethereum.vm.program.ProgramResult;
-import org.ethereum.vm.program.ProgramResultCallWithValue;
+import org.ethereum.vm.program.GasExactimationCallWithValue;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
 
-import co.rsk.config.BridgeConstants;
-import co.rsk.core.ReversibleTransactionExecutor;
-import co.rsk.core.RskAddress;
 import co.rsk.core.Wallet;
-import co.rsk.core.bc.BlockResult;
-import co.rsk.core.bc.PendingState;
-import co.rsk.db.RepositoryLocator;
 import co.rsk.net.TransactionGateway;
-import co.rsk.peg.BridgeSupportFactory;
-import co.rsk.rpc.ExecutionBlockRetriever;
+
 import java.math.BigInteger;
 
 
-import static org.ethereum.crypto.HashUtil.EMPTY_TRIE_HASH;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.*;
 
 public class EthModuleTest {
 
@@ -264,7 +252,6 @@ public class EthModuleTest {
     String anyAddress = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
     private CallArguments getTransactionParameters() {
-        //
         RskAddress addr1 = new RskAddress(anyAddress);
         BigInteger value = BigInteger.valueOf(0); // do not pass value
         BigInteger gasPrice = BigInteger.valueOf(8);
@@ -287,7 +274,6 @@ public class EthModuleTest {
 
     @Test
     public void estimateGas() {
-
         TransactionPool mockTransactionPool = mock(TransactionPool.class);
         PendingState mockPendingState = mock(PendingState.class);
 
@@ -304,8 +290,8 @@ public class EthModuleTest {
         programResult.addDeductedRefund(10000);
         programResult.spendGas(30000);
 
-        ProgramResultCallWithValue programResultCallWithValue = new ProgramResultCallWithValue(programResult);
-        doReturn(programResultCallWithValue).when(executor).executeTransactionGasExactimation(any(),any(),
+        GasExactimationCallWithValue gasExactimationCallWithValue = new GasExactimationCallWithValue(programResult);
+        doReturn(gasExactimationCallWithValue).when(executor).executeTransactionGasExactimation(any(),any(),
                 any(),any(),any(),any(),any(),any());
 
         EthModule eth = new EthModule(
