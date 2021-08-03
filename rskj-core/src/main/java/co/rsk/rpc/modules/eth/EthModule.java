@@ -30,6 +30,7 @@ import co.rsk.peg.BridgeSupport;
 import co.rsk.peg.BridgeSupportFactory;
 import co.rsk.rpc.ExecutionBlockRetriever;
 import co.rsk.trie.TrieStoreImpl;
+import com.google.common.annotations.VisibleForTesting;
 import org.ethereum.core.*;
 import org.ethereum.datasource.HashMapDB;
 import org.ethereum.db.MutableRepository;
@@ -248,7 +249,8 @@ public class EthModule
         }
     }
 
-    private ProgramResult callConstant(CallArguments args, Block executionBlock) {
+    @VisibleForTesting
+    public ProgramResult callConstant(CallArguments args, Block executionBlock) {
         CallArgumentsToByteArray hexArgs = new CallArgumentsToByteArray(args);
         return reversibleTransactionExecutor.executeTransaction(
                 executionBlock,

@@ -20,6 +20,7 @@ package co.rsk.rpc.modules.eth;
 
 import co.rsk.config.TestSystemProperties;
 import co.rsk.core.ReversibleTransactionExecutor;
+import co.rsk.core.RskAddress;
 import co.rsk.core.TransactionExecutorFactory;
 import co.rsk.rpc.ExecutionBlockRetriever;
 import co.rsk.test.World;
@@ -27,11 +28,13 @@ import co.rsk.test.dsl.DslParser;
 import co.rsk.test.dsl.DslProcessorException;
 import co.rsk.test.dsl.WorldDslProcessor;
 import org.ethereum.config.Constants;
+import org.ethereum.core.Block;
 import org.ethereum.core.Transaction;
 import org.ethereum.core.TransactionReceipt;
 import org.ethereum.rpc.CallArguments;
 import org.ethereum.rpc.exception.RskJsonRpcRequestException;
 import org.ethereum.vm.PrecompiledContracts;
+import org.ethereum.vm.program.ProgramResult;
 import org.ethereum.vm.program.invoke.ProgramInvokeFactoryImpl;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
@@ -102,5 +105,62 @@ public class EthModuleDLSTest {
                 null,
                 null,
                 world.getBridgeSupportFactory());
+    }
+
+    @Test
+    public void testEstimateGasUsingCallWithValue() throws FileNotFoundException, DslProcessorException {
+        DslParser parser = DslParser.fromResource("dsl/eth_module/estimateGas/callWithValue.txt");
+        World world = new World();
+
+        WorldDslProcessor processor = new WorldDslProcessor(world);
+        processor.processCommands(parser);
+
+        // Deploy Check
+        TransactionReceipt deployTransactionReceipt = world.getTransactionReceiptByName("tx01");
+        byte[] status = deployTransactionReceipt.getStatus();
+        RskAddress contractAddress = deployTransactionReceipt.getTransaction().getContractAddress();
+
+        Assert.assertNotNull(status);
+        Assert.assertEquals(1, status.length);
+        Assert.assertEquals(0x01, status[0]);
+        Assert.assertEquals("6252703f5ba322ec64d3ac45e56241b7d9e481ad", contractAddress.toHexString());
+
+        // Call with value estimation
+        EthModule eth = buildEthModule(world);
+
+        final CallArguments args = new CallArguments();
+        args.setTo(contractAddress.toHexString());
+        args.setData("c3cefd36");
+        args.setValue("10000");
+        args.setNonce("1");
+        args.setGas("10000000");
+
+        Block block = world.getBlockChain().getBestBlock();
+
+        // Evaluate the gas used
+        long gasUsed = eth.callConstant(args, block).getGasUsed();
+
+        // Estimate the gas to use
+        String estimation = eth.estimateGas(args);
+        long estimatedGas = Long.parseLong(estimation.substring(2), 16);
+
+        // The estimated gas should be greater than the gas used in the call
+        Assert.assertTrue(gasUsed < estimatedGas);
+
+        // Call same transaction with estimated gas
+        args.setGas("0x" + Long.toString(estimatedGas, 16));
+
+        Assert.assertTrue(runWithArgumentsAndBlock(eth, args, block));
+
+        // Call same transaction with gas used should fail
+        args.setGas("0x" + Long.toString(gasUsed, 16));
+
+        Assert.assertFalse(runWithArgumentsAndBlock(eth, args, block));
+    }
+
+    public boolean runWithArgumentsAndBlock(EthModule ethModule, CallArguments args, Block block) {
+        ProgramResult res = ethModule.callConstant(args, block);
+
+        return res.getException() == null;
     }
 }
