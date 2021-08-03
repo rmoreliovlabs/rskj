@@ -493,7 +493,7 @@ public class TransactionExecutor {
     }
 
     public boolean getProgramCallWithValuePerformed() {
-        return program.getCallWithValuePerformed();
+        return program != null ? program.getCallWithValuePerformed() : false;
     }
 
     private void finalization() {

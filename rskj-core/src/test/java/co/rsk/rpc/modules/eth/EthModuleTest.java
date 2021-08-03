@@ -291,7 +291,7 @@ public class EthModuleTest {
         programResult.spendGas(30000);
 
         GasExactimationCallWithValue gasExactimationCallWithValue = new GasExactimationCallWithValue(programResult);
-        doReturn(gasExactimationCallWithValue).when(executor).executeTransactionGasExactimation(any(),any(),
+        doReturn(gasExactimationCallWithValue).when(executor).estimateGas(any(),any(),
                 any(),any(),any(),any(),any(),any());
 
         EthModule eth = new EthModule(
