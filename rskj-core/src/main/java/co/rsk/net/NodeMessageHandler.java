@@ -20,6 +20,7 @@ package co.rsk.net;
 
 import co.rsk.config.InternalService;
 import co.rsk.config.RskSystemProperties;
+import co.rsk.core.RskAddress;
 import co.rsk.core.bc.BlockUtils;
 import co.rsk.crypto.Keccak256;
 import co.rsk.net.messages.*;
@@ -127,6 +128,12 @@ public class NodeMessageHandler implements MessageHandler, InternalService, Runn
     }
 
     private void tryAddMessage(Peer sender, Message message) {
+        if (message instanceof BlockMessage) {
+            BlockMessage blockMessage = (BlockMessage) message;
+            RskAddress miner = blockMessage.getBlock().getHeader().getCoinbase();
+            Keccak256 hash = blockMessage.getBlock().getHash();
+            logger.trace("Received block {}, from minner {}", hash.toHexString(), miner.toHexString());
+        }
         Keccak256 encodedMessage = new Keccak256(HashUtil.keccak256(message.getEncoded()));
         if (!receivedMessages.contains(encodedMessage)) {
             if (message.getMessageType() == MessageType.BLOCK_MESSAGE || message.getMessageType() == MessageType.TRANSACTIONS) {
