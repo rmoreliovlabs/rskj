@@ -1276,21 +1276,14 @@ public class VM {
             DataWord newValue = stack.get(stack.size() - 2);
             DataWord oldValue = program.storageLoad(stack.peek());
 
-            // From null to non-zero
-            if (oldValue == null && !newValue.isZero()) {
+            if (oldValue == null && !newValue.isZero()) { // From null to non-zero
                 gasCost = GasCost.SET_SSTORE;
-            }
-
-                // from non-zero to zero
-            else if (oldValue != null && newValue.isZero()) {
+            } else if (oldValue != null && newValue.isZero()) { // from non-zero to zero
                 // todo: GASREFUND counter policyn
-
-                // refund step cost policy.
+                // refund step cost policy
                 program.futureRefundGas(GasCost.REFUND_SSTORE);
                 gasCost = GasCost.CLEAR_SSTORE;
-            } else
-                // from zero to zero, or from non-zero to non-zero
-            {
+            } else { // from zero to zero, or from non-zero to non-zero
                 gasCost = GasCost.RESET_SSTORE;
             }
 
