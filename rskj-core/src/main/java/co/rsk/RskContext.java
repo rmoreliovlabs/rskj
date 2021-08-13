@@ -549,6 +549,9 @@ public class RskContext implements NodeBootstrapper {
     public PeerScoringManager getPeerScoringManager() {
         if (peerScoringManager == null) {
             RskSystemProperties rskSystemProperties = getRskSystemProperties();
+            List<String> bannedPeerIPs = rskSystemProperties.bannedPeerIPList();
+            List<String> bannedPeerIDs = rskSystemProperties.bannedPeerIDList();
+
             peerScoringManager = new PeerScoringManager(
                     () -> new PeerScoring(rskSystemProperties.scoringPunishmentEnabled()),
                     rskSystemProperties.scoringNumberOfNodes(),
@@ -561,7 +564,9 @@ public class RskContext implements NodeBootstrapper {
                             rskSystemProperties.scoringAddressesPunishmentDuration(),
                             rskSystemProperties.scoringAddressesPunishmentIncrement(),
                             rskSystemProperties.scoringAddressesPunishmentMaximumDuration()
-                    )
+                    ),
+                    bannedPeerIPs,
+                    bannedPeerIDs
             );
         }
 
@@ -1112,7 +1117,8 @@ public class RskContext implements NodeBootstrapper {
                     rskSystemProperties.peerDiscoveryMessageTimeOut(),
                     rskSystemProperties.peerDiscoveryRefreshPeriod(),
                     rskSystemProperties.peerDiscoveryCleanPeriod(),
-                    rskSystemProperties.networkId()
+                    rskSystemProperties.networkId(),
+                    getPeerScoringManager()
             );
         }
 
