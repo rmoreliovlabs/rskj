@@ -35,7 +35,7 @@ import static org.ethereum.util.ByteUtil.EMPTY_BYTE_ARRAY;
  */
 public class ProgramResult {
 
-    private long gasUsed;
+    protected long gasUsed;
     private byte[] hReturn = EMPTY_BYTE_ARRAY;
     private Exception exception;
     private boolean revert;
@@ -49,7 +49,7 @@ public class ProgramResult {
     private List<InternalTransaction> internalTransactions;
     private List<LogInfo> logInfoList;
     private long futureRefund = 0;
-    private long deductedRefund = 0;
+    protected long deductedRefund = 0;
 
     /*
      * for testing runs ,

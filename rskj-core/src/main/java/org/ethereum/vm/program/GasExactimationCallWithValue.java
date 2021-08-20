@@ -8,8 +8,8 @@ import org.ethereum.vm.GasCost;
  * */
 public class GasExactimationCallWithValue extends ProgramResult {
     public GasExactimationCallWithValue(ProgramResult result) {
-        this.addDeductedRefund(result.getDeductedRefund());
-        this.setGasUsed(result.getGasUsed());
+        this.deductedRefund = result.getDeductedRefund();
+        this.gasUsed = result.getGasUsed();
     }
 
     @Override
