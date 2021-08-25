@@ -156,7 +156,9 @@ public class TransactionModuleTest {
         TransactionPool transactionPool = world.getTransactionPool();
         TransactionGateway transactionGateway = new TransactionGateway(new SimpleChannelManager(), transactionPool);
 
-        Web3Impl web3 = createEnvironment(blockchain, mainchainView, receiptStore, transactionPool, blockStore, true, repositoryLocator, world.getBlockTxSignatureCache(), transactionGateway);
+        Web3Impl web3 = createEnvironment(blockchain, mainchainView, receiptStore, transactionPool, blockStore,
+                true, createStateRootHandler(), repositoryLocator,
+                world.getBlockTxSignatureCache(), transactionGateway);
 
         for (int i = 1; i < 100; i++) {
             String tx = sendTransaction(web3, repositoryLocator.snapshotAt(blockchain.getBestBlock().getHeader()));
@@ -486,6 +488,7 @@ public class TransactionModuleTest {
                 transactionPool,
                 blockStore,
                 mineInstant,
+                stateRootHandler,
                 new RepositoryLocator(store, stateRootHandler),
                 signatureCache,
                 transactionGateway);
@@ -572,7 +575,7 @@ public class TransactionModuleTest {
         BlockExecutor blockExecutor = new BlockExecutor(
                 config.getActivationConfig(),
                 repositoryLocator,
-                stateRootHandler,
+//                stateRootHandler,
                 this.transactionExecutorFactory
         );
 
@@ -628,7 +631,8 @@ public class TransactionModuleTest {
                 repositoryLocator, new EthModuleWalletEnabled(wallet), transactionModule,
                 new BridgeSupportFactory(
                         btcBlockStoreFactory, config.getNetworkConstants().getBridgeConstants(),
-                        config.getActivationConfig())
+                        config.getActivationConfig()),
+                config.getGasEstimationCap()
         );
         TxPoolModule txPoolModule = new TxPoolModuleImpl(transactionPool);
         DebugModule debugModule = new DebugModuleImpl(null, null, Web3Mocks.getMockMessageHandler(), null);
@@ -664,9 +668,10 @@ public class TransactionModuleTest {
     private StateRootHandler createStateRootHandler() {
         return new StateRootHandler(
                 config.getActivationConfig(),
-                new TrieConverter(),
-                new HashMapDB(),
-                new HashMap<>()
+                new StateRootsStoreImpl(new HashMapDB())
+//                new TrieConverter(),
+//                new HashMapDB()
+//                new HashMap<>()
         );
     }
 

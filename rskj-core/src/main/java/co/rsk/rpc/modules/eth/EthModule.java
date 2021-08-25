@@ -49,8 +49,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Arrays.copyOfRange;
-import static org.ethereum.rpc.TypeConverter.stringHexToBigInteger;
-import static org.ethereum.rpc.TypeConverter.toUnformattedJsonHex;
+import static org.ethereum.rpc.TypeConverter.*;
 import static org.ethereum.rpc.exception.RskJsonRpcRequestException.invalidParamError;
 
 // TODO add all RPC methods
@@ -72,6 +71,7 @@ public class EthModule
     private final BridgeConstants bridgeConstants;
     private final BridgeSupportFactory bridgeSupportFactory;
     private final byte chainId;
+    private final long gasEstimationCap;
 
 
     public EthModule(
@@ -84,7 +84,8 @@ public class EthModule
             RepositoryLocator repositoryLocator,
             EthModuleWallet ethModuleWallet,
             EthModuleTransaction ethModuleTransaction,
-            BridgeSupportFactory bridgeSupportFactory) {
+            BridgeSupportFactory bridgeSupportFactory,
+            long gasEstimationCap) {
         this.chainId = chainId;
         this.blockchain = blockchain;
         this.transactionPool = transactionPool;
@@ -95,6 +96,7 @@ public class EthModule
         this.ethModuleTransaction = ethModuleTransaction;
         this.bridgeConstants = bridgeConstants;
         this.bridgeSupportFactory = bridgeSupportFactory;
+        this.gasEstimationCap = gasEstimationCap;
     }
 
     @Override
@@ -153,7 +155,7 @@ public class EthModule
                     bestBlock,
                     bestBlock.getCoinbase(),
                     hexArgs.getGasPrice(),
-                    hexArgs.getGasLimit(),
+                    hexArgs.gasLimitForGasEstimation(gasEstimationCap),
                     hexArgs.getToAddress(),
                     hexArgs.getValue(),
                     hexArgs.getData(),

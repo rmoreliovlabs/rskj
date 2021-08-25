@@ -18,55 +18,49 @@
 
 package co.rsk.rpc.modules.eth;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyByte;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import co.rsk.config.BridgeConstants;
+import co.rsk.config.TestSystemProperties;
+import co.rsk.core.Coin;
 import co.rsk.core.ReversibleTransactionExecutor;
 import co.rsk.core.RskAddress;
+import co.rsk.core.Wallet;
 import co.rsk.core.bc.BlockResult;
 import co.rsk.core.bc.PendingState;
 import co.rsk.db.RepositoryLocator;
+import co.rsk.net.TransactionGateway;
 import co.rsk.peg.BridgeSupportFactory;
 import co.rsk.rpc.ExecutionBlockRetriever;
+import co.rsk.test.World;
 import org.bouncycastle.util.BigIntegers;
 import org.bouncycastle.util.encoders.Hex;
 import org.ethereum.TestUtils;
 import org.ethereum.config.Constants;
-import org.ethereum.core.Block;
-import org.ethereum.core.Blockchain;
-import org.ethereum.core.Transaction;
-import org.ethereum.core.TransactionPool;
-import org.ethereum.core.TransactionPoolAddResult;
+import org.ethereum.core.*;
 import org.ethereum.datasource.HashMapDB;
 import org.ethereum.rpc.CallArguments;
 import org.ethereum.rpc.TypeConverter;
 import org.ethereum.rpc.exception.RskJsonRpcRequestException;
+import org.ethereum.util.ByteUtil;
+import org.ethereum.util.EthModuleUtils;
 import org.ethereum.util.TransactionTestHelper;
-import org.ethereum.vm.program.ProgramResult;
 import org.ethereum.vm.program.GasExactimationCallWithValue;
+import org.ethereum.vm.program.ProgramResult;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
 
-import co.rsk.core.Wallet;
-import co.rsk.net.TransactionGateway;
-
 import java.math.BigInteger;
-
+import java.nio.charset.StandardCharsets;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 public class EthModuleTest {
+
+    private TestSystemProperties config = new TestSystemProperties();
 
     @Test
     public void callSmokeTest() {
@@ -98,7 +92,8 @@ public class EthModuleTest {
                 null,
                 null,
                 new BridgeSupportFactory(
-                        null, null, null));
+                        null, null, null),
+                config.getGasEstimationCap());
 
         String expectedResult = TypeConverter.toUnformattedJsonHex(hReturn);
         String actualResult = eth.call(args, "latest");
@@ -136,7 +131,8 @@ public class EthModuleTest {
                 null,
                 null,
                 new BridgeSupportFactory(
-                        null, null, null));
+                        null, null, null),
+                config.getGasEstimationCap());
 
         String expectedResult = TypeConverter.toUnformattedJsonHex(hReturn);
         String actualResult = eth.call(args, "latest");
@@ -179,7 +175,8 @@ public class EthModuleTest {
                 null,
                 null,
                 new BridgeSupportFactory(
-                        null, null, null));
+                        null, null, null),
+                config.getGasEstimationCap());
 
         try {
             eth.call(args, "latest");
@@ -242,7 +239,8 @@ public class EthModuleTest {
                         null,
                         null,
                         null
-                )
+                ),
+                config.getGasEstimationCap()
         );
 
         String addr = eth.getCode(TestUtils.randomAddress().toHexString(), "pending");
@@ -251,7 +249,7 @@ public class EthModuleTest {
 
     String anyAddress = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-    private CallArguments getTransactionParameters() {
+    private CallArguments transactionParameters() {
         RskAddress addr1 = new RskAddress(anyAddress);
         BigInteger value = BigInteger.valueOf(0); // do not pass value
         BigInteger gasPrice = BigInteger.valueOf(8);
@@ -308,10 +306,26 @@ public class EthModuleTest {
                         null,
                         null,
                         null
-                )
+                ),
+                config.getGasEstimationCap()
         );
 
-        CallArguments args = getTransactionParameters();
+        RskAddress addr1 = new RskAddress(anyAddress);
+        BigInteger value = BigInteger.valueOf(0); // do not pass value
+        BigInteger gasPrice = BigInteger.valueOf(8);
+        BigInteger gasLimit = BigInteger.valueOf(500000); // large enough
+        String data = "0xff";
+
+        CallArguments args = new CallArguments();
+        args.setFrom(TypeConverter.toJsonHex(addr1.getBytes()));
+        args.setTo(args.getFrom());  // same account
+        args.setData(data);
+        args.setGas(TypeConverter.toQuantityJsonHex(gasLimit));
+        args.setGasPrice(TypeConverter.toQuantityJsonHex(gasPrice));
+        args.setValue(value.toString());
+        // Nonce doesn't matter
+        args.setNonce("0");
+
         String gas = eth.estimateGas(args);
         byte[] gasReturned = Hex.decode(gas.substring("0x".length()));
         Assert.assertThat(gasReturned, is(BigIntegers.asUnsignedByteArray(BigInteger.valueOf(42300))));
@@ -329,7 +343,8 @@ public class EthModuleTest {
                 mock(RepositoryLocator.class),
                 mock(EthModuleWallet.class),
                 mock(EthModuleTransaction.class),
-                mock(BridgeSupportFactory.class)
+                mock(BridgeSupportFactory.class),
+                config.getGasEstimationCap()
         );
         assertThat(eth.chainId(), is("0x21"));
     }

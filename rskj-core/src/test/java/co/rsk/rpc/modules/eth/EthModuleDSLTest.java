@@ -19,23 +19,20 @@
 package co.rsk.rpc.modules.eth;
 
 import co.rsk.config.TestSystemProperties;
-import co.rsk.core.ReversibleTransactionExecutor;
+import co.rsk.core.Coin;
 import co.rsk.core.RskAddress;
-import co.rsk.core.TransactionExecutorFactory;
-import co.rsk.rpc.ExecutionBlockRetriever;
 import co.rsk.test.World;
 import co.rsk.test.dsl.DslParser;
 import co.rsk.test.dsl.DslProcessorException;
 import co.rsk.test.dsl.WorldDslProcessor;
-import org.ethereum.config.Constants;
 import org.ethereum.core.Block;
 import org.ethereum.core.Transaction;
 import org.ethereum.core.TransactionReceipt;
 import org.ethereum.rpc.CallArguments;
+import org.ethereum.rpc.TypeConverter;
 import org.ethereum.rpc.exception.RskJsonRpcRequestException;
-import org.ethereum.vm.PrecompiledContracts;
+import org.ethereum.util.EthModuleUtils;
 import org.ethereum.vm.program.ProgramResult;
-import org.ethereum.vm.program.invoke.ProgramInvokeFactoryImpl;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
@@ -48,7 +45,7 @@ import static org.junit.Assert.*;
 /**
  * Created by patogallaiovlabs on 28/10/2020.
  */
-public class EthModuleDLSTest {
+public class EthModuleDSLTest {
     @Test
     public void testCall_getRevertReason() throws FileNotFoundException, DslProcessorException {
         DslParser parser = DslParser.fromResource("dsl/eth_module/revert_reason.txt");
@@ -63,7 +60,7 @@ public class EthModuleDLSTest {
         Assert.assertNotNull(status);
         Assert.assertEquals(0, status.length);
 
-        EthModule eth = buildEthModule(world);
+        EthModule eth = EthModuleUtils.buildBasicEthModule(world);
         final Transaction tx01 = world.getTransactionByName("tx01");
         final CallArguments args = new CallArguments();
         args.setTo(tx01.getContractAddress().toHexString()); //"6252703f5ba322ec64d3ac45e56241b7d9e481ad";
@@ -83,38 +80,9 @@ public class EthModuleDLSTest {
         assertEquals("0x", call);
     }
 
-    private EthModule buildEthModule(World world) {
-        final TestSystemProperties config = new TestSystemProperties();
-        TransactionExecutorFactory executor = new TransactionExecutorFactory(
-                config,
-                world.getBlockStore(),
-                null,
-                null,
-                new ProgramInvokeFactoryImpl(),
-                new PrecompiledContracts(config, world.getBridgeSupportFactory()),
-                null
-        );
-
-        return new EthModule(
-                null,
-                Constants.REGTEST_CHAIN_ID,
-                world.getBlockChain(),
-                null,
-                new ReversibleTransactionExecutor(world.getRepositoryLocator(), executor),
-                new ExecutionBlockRetriever(null, world.getBlockChain(), null, null),
-                null,
-                null,
-                null,
-                world.getBridgeSupportFactory());
-    }
-
     @Test
     public void testEstimateGasUsingCallWithValue() throws FileNotFoundException, DslProcessorException {
-        DslParser parser = DslParser.fromResource("dsl/eth_module/estimateGas/callWithValue.txt");
-        World world = new World();
-
-        WorldDslProcessor processor = new WorldDslProcessor(world);
-        processor.processCommands(parser);
+        World world = World.processedWorld("dsl/eth_module/estimateGas/callWithValue.txt");
 
         // Deploy Check
         TransactionReceipt deployTransactionReceipt = world.getTransactionReceiptByName("tx01");
@@ -127,7 +95,7 @@ public class EthModuleDLSTest {
         Assert.assertEquals("6252703f5ba322ec64d3ac45e56241b7d9e481ad", contractAddress.toHexString());
 
         // Call with value estimation
-        EthModule eth = buildEthModule(world);
+        EthModule eth = EthModuleUtils.buildBasicEthModule(world);
 
         final CallArguments args = new CallArguments();
         args.setTo(contractAddress.toHexString());
@@ -170,11 +138,7 @@ public class EthModuleDLSTest {
      * */
     @Test
     public void testEstimateGasUsingUpdateStorage() throws FileNotFoundException, DslProcessorException {
-        DslParser parser = DslParser.fromResource("dsl/eth_module/estimateGas/updateStorage.txt");
-        World world = new World();
-
-        WorldDslProcessor processor = new WorldDslProcessor(world);
-        processor.processCommands(parser);
+        World world = World.processedWorld("dsl/eth_module/estimateGas/updateStorage.txt");
 
         TransactionReceipt deployTransactionReceipt = world.getTransactionReceiptByName("tx01");
         String contractAddress = deployTransactionReceipt.getTransaction().getContractAddress().toHexString();
@@ -193,7 +157,7 @@ public class EthModuleDLSTest {
         assertEquals(0x01, status2[0]);
 
 
-        EthModule eth = buildEthModule(world);
+        EthModule eth = EthModuleUtils.buildBasicEthModule(world);
         Block block = world.getBlockChain().getBestBlock();
 
         // from non-zero to zero - setValue(1, 0) - it should have a refund
@@ -253,5 +217,34 @@ public class EthModuleDLSTest {
         // the estimated gas should be equal to tx02 gas used
         assertEquals(initStorageGasUsed, anotherInitStorageGasUsed);
         assertEquals(anotherInitStorageEstimatedGas, anotherInitStorageGasUsed);
+    }
+
+    @Test
+    public void estimateGas_gasCap() throws FileNotFoundException, DslProcessorException {
+        World world = World.processedWorld("dsl/eth_module/estimateGas/gasCap.txt");
+
+        TransactionReceipt deployTransactionReceipt = world.getTransactionReceiptByName("tx01");
+        String sender = deployTransactionReceipt.getTransaction().getSender().toHexString();
+        String contractAddress = deployTransactionReceipt.getTransaction().getContractAddress().toHexString();
+        byte[] status = deployTransactionReceipt.getStatus();
+
+        assertNotNull(status);
+        assertEquals(1, status.length);
+        assertEquals(0x01, status[0]);
+
+        EthModule eth = EthModuleUtils.buildBasicEthModule(world);
+        long gasEstimationCap = new TestSystemProperties().getGasEstimationCap();
+
+        Long tonsOfGas = gasEstimationCap + 1000000000;
+
+        CallArguments callArguments = new CallArguments();
+        callArguments.setFrom(sender); // the creator
+        callArguments.setTo(contractAddress);  // deployed contract
+        callArguments.setGas(tonsOfGas.toString()); // exceeding the gas cap
+        callArguments.setData("31fe52e8"); // call outOfGas()
+
+        String estimatedGas = eth.estimateGas(callArguments);
+
+        Assert.assertEquals(gasEstimationCap, Long.decode(estimatedGas).longValue());
     }
 }
