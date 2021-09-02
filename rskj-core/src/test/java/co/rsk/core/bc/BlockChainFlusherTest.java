@@ -58,7 +58,7 @@ public class BlockChainFlusherTest {
     }
 
     @Test
-    public void flusherStarted_WhenStopped_ShouldUnsubscribeAndFlushAndCloseStores() {
+    public void flusherStarted_WhenStopped_ShouldUnsubscribeAndFlush() {
         flusher.stop();
 
         verify(emitter, times(1)).removeListener(listener);
@@ -68,10 +68,6 @@ public class BlockChainFlusherTest {
         verify(receiptStore).flush();
         verify(blocksBloomStore).flush();
         verify(stateRootsStore).flush();
-
-        verify(blockStore).close();
-        verify(blocksBloomStore).close();
-        verify(stateRootsStore).close();
     }
 
     @Test

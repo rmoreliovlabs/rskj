@@ -1,7 +1,6 @@
 /*
  * This file is part of RskJ
- * Copyright (C) 2017 RSK Labs Ltd.
- * (derived from ethereumJ library, Copyright (c) 2016 <ether.camp>)
+ * Copyright (C) 2021 RSK Labs Ltd.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -16,30 +15,17 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-
-package org.ethereum.db;
-
-import org.ethereum.core.TransactionReceipt;
-
-import java.util.List;
-import java.util.Optional;
+package co.rsk;
 
 /**
- * Created by Ruben on 6/1/2016.
- * Interface used for store transaction receipts
+ * This interface extends {@link AutoCloseable} interface, so that implementations should properly release their resources
+ * when {@link AutoCloseable#close()} is triggered.
+ *
+ * Note that implementers of this interface are encouraged to make their close method idempotent.
  */
-
-public interface ReceiptStore {
-
-    void add(byte[] blockHash, int transactionIndex, TransactionReceipt receipt);
-
-    Optional<TransactionInfo> get(byte[] transactionHash, byte[] blockHash);
-
-    Optional<TransactionInfo> getInMainChain(byte[] transactionHash, BlockStore store);
-
-    void saveMultiple(byte[] blockHash, List<TransactionReceipt> receipts);
-
-    void flush();
-
-    void close();
+public interface NodeContext extends AutoCloseable {
+    /**
+     * Returns {@code true} if this context is already closed, otherwise - {@code false}.
+     */
+    boolean isClosed();
 }
