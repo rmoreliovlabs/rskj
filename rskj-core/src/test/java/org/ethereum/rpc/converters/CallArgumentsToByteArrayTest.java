@@ -124,17 +124,17 @@ public class CallArgumentsToByteArrayTest {
 
     @Test
     public void gasLimitForGasEstimationExceedingGasCap() {
-        long hugeGasLimit = 900000000000000l;
+        long hugeAmountOfGas = 900000000000000l;
         long gasEstimationCap = config.getGasEstimationCap();
 
         CallArguments callArguments = new CallArguments();
-        callArguments.setGas(TypeConverter.toQuantityJsonHex(hugeGasLimit));
+        callArguments.setGas(TypeConverter.toQuantityJsonHex(hugeAmountOfGas));
 
-        Assert.assertEquals(hugeGasLimit, Long.decode(callArguments.getGas()).longValue());
+        Assert.assertEquals(hugeAmountOfGas, Long.decode(callArguments.getGas()).longValue());
 
         CallArgumentsToByteArray callArgumentsToByteArray = new CallArgumentsToByteArray(callArguments);
 
-        Assert.assertEquals(hugeGasLimit, ByteUtil.byteArrayToLong(callArgumentsToByteArray.getGasLimit()));
+        Assert.assertEquals(hugeAmountOfGas, ByteUtil.byteArrayToLong(callArgumentsToByteArray.getGasLimit()));
         Assert.assertEquals(gasEstimationCap, ByteUtil.byteArrayToLong(
                 callArgumentsToByteArray.gasLimitForGasEstimation(gasEstimationCap)));
     }

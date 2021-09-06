@@ -162,11 +162,6 @@ public class EthModule
                     hexArgs.getFromAddress()
             );
 
-            // IMPORTANT: currently, due to localCall=true argument,
-            // res.getDeductedRefund() will always return zero. This is ok.
-            // However this method is prepared for the time where localCall sematic
-            // is changed so that it does process refunds, which is what one would expect.
-
             // gasUsed cannot be greater than the gas passed, which should not
             // be higher than the block gas limit, so we don't expect any overflow
             // in these operations unless the user provides a malicius gasLimit value.

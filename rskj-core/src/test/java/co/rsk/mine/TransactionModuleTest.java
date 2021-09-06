@@ -669,9 +669,6 @@ public class TransactionModuleTest {
         return new StateRootHandler(
                 config.getActivationConfig(),
                 new StateRootsStoreImpl(new HashMapDB())
-//                new TrieConverter(),
-//                new HashMapDB()
-//                new HashMap<>()
         );
     }
 
