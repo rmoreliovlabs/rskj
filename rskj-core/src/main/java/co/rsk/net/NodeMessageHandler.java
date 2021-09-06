@@ -36,6 +36,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class NodeMessageHandler implements MessageHandler, InternalService, Runnable {
     private static final Logger logger = LoggerFactory.getLogger("messagehandler");
@@ -62,6 +63,10 @@ public class NodeMessageHandler implements MessageHandler, InternalService, Runn
 
     private volatile boolean stopped;
 
+    private Map<NodeID, AtomicInteger> mesagesPerNode = new HashMap<>();
+
+    private static final AtomicInteger ZERO = new AtomicInteger(0);
+    
     /**
      * @param statusResolver
      */
@@ -112,6 +117,9 @@ public class NodeMessageHandler implements MessageHandler, InternalService, Runn
         else {
             loggerMessageProcess.debug("Message[{}] processed after [{}] seconds.", message.getMessageType(), timeInSeconds);
         }
+        
+        Optional.ofNullable(mesagesPerNode.get(sender.getPeerNodeID())).filter(counter -> counter.get() > 0).ifPresent(AtomicInteger::decrementAndGet);
+        
     }
 
     @Override
@@ -127,6 +135,14 @@ public class NodeMessageHandler implements MessageHandler, InternalService, Runn
     }
 
     private void tryAddMessage(Peer sender, Message message) {
+    	
+    	boolean allowed = messageIngressControl(sender, message);
+    	
+    	if(!allowed) {
+    		return;
+    	}
+    	
+    	
         Keccak256 encodedMessage = new Keccak256(HashUtil.keccak256(message.getEncoded()));
         if (!receivedMessages.contains(encodedMessage)) {
             if (message.getMessageType() == MessageType.BLOCK_MESSAGE || message.getMessageType() == MessageType.TRANSACTIONS) {
@@ -145,9 +161,26 @@ public class NodeMessageHandler implements MessageHandler, InternalService, Runn
         }
     }
 
+    /**
+     * Responds if a message must be allowed 
+     */
+    private boolean messageIngressControl(Peer sender, Message message) {
+    
+    	AtomicInteger counter = mesagesPerNode.computeIfAbsent(sender.getPeerNodeID(), m -> new AtomicInteger());
+
+    	return (counter.get() < config.getMessageQueueMaxSize());
+    }
+    
     private void addMessage(Peer sender, Message message, double score) {
-        if (score >= 0 && !this.queue.offer(new MessageTask(sender, message, score))) {
+    	
+    	boolean messageAdded = this.queue.offer(new MessageTask(sender, message, score));
+    	
+        if (score >= 0 && !messageAdded) {
             logger.warn("Unexpected path. Is message queue bounded now?");
+        }
+        
+        if(messageAdded) {
+        	Optional.ofNullable(mesagesPerNode.get(sender.getPeerNodeID())).ifPresent(AtomicInteger::incrementAndGet);
         }
     }
 
@@ -173,6 +206,10 @@ public class NodeMessageHandler implements MessageHandler, InternalService, Runn
     @Override
     public long getMessageQueueSize() {
         return this.queue.size();
+    }
+
+    public Integer getMessageQueueSize(Peer peer) {
+    	return Optional.ofNullable(mesagesPerNode.get(peer.getPeerNodeID())).orElse(ZERO).intValue();
     }
 
     @Override
