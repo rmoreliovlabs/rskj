@@ -21,6 +21,7 @@ package co.rsk.core;
 
 import co.rsk.db.RepositoryLocator;
 import co.rsk.db.RepositorySnapshot;
+import com.sun.tools.javac.util.Pair;
 import org.ethereum.core.Block;
 import org.ethereum.core.Repository;
 import org.ethereum.core.Transaction;
@@ -43,8 +44,8 @@ public class ReversibleTransactionExecutor {
         this.transactionExecutorFactory = transactionExecutorFactory;
     }
 
-    public ProgramResult estimateGas(Block executionBlock, RskAddress coinbase, byte[] gasPrice, byte[] gasLimit,
-            byte[] toAddress, byte[] value, byte[] data, RskAddress fromAddress) {
+    public Pair<ProgramResult, TransactionExecutor> estimateGas(Block executionBlock, RskAddress coinbase, byte[] gasPrice, byte[] gasLimit,
+                                                                byte[] toAddress, byte[] value, byte[] data, RskAddress fromAddress) {
         TransactionExecutor executor = reversibleExecution(
                 repositoryLocator.snapshotAt(executionBlock.getHeader()),
                 executionBlock,
@@ -58,8 +59,8 @@ public class ReversibleTransactionExecutor {
         );
 
         return  executor.getProgramCallWithValuePerformed() ?
-                new GasExactimationCallWithValue(executor.getResult()) :
-                executor.getResult();
+                new Pair<>(new GasExactimationCallWithValue(executor.getResult()), executor) :
+                new Pair(executor.getResult(), executor);
     }
 
     public ProgramResult executeTransaction(

@@ -31,6 +31,7 @@ import co.rsk.peg.BridgeSupportFactory;
 import co.rsk.rpc.ExecutionBlockRetriever;
 import co.rsk.trie.TrieStoreImpl;
 import com.google.common.annotations.VisibleForTesting;
+import com.sun.tools.javac.util.Pair;
 import org.ethereum.core.*;
 import org.ethereum.datasource.HashMapDB;
 import org.ethereum.db.MutableRepository;
@@ -151,7 +152,8 @@ public class EthModule
         try {
             Block bestBlock = blockchain.getBestBlock();
             CallArgumentsToByteArray hexArgs = new CallArgumentsToByteArray(args);
-            ProgramResult res = reversibleTransactionExecutor.estimateGas(
+
+            Pair<ProgramResult, TransactionExecutor> result = reversibleTransactionExecutor.estimateGas(
                     bestBlock,
                     bestBlock.getCoinbase(),
                     hexArgs.getGasPrice(),
@@ -161,12 +163,16 @@ public class EthModule
                     hexArgs.getData(),
                     hexArgs.getFromAddress()
             );
+            ProgramResult res = result.fst;
+            TransactionExecutor transactionExecutor = result.snd;
 
             // gasUsed cannot be greater than the gas passed, which should not
             // be higher than the block gas limit, so we don't expect any overflow
             // in these operations unless the user provides a malicius gasLimit value.
 
-            final long gasNeeded = res.getGasUsed() + res.getDeductedRefund();
+//            final long gasNeeded = res.getGasUsed() + res.getDeductedRefund();
+            final long gasNeeded = transactionExecutor.getGasUsed() + res.getDeductedRefund();
+//            final long gasNeeded = res.getEstimatedGas();
             estimation = TypeConverter.toQuantityJsonHex(gasNeeded);
 
             return estimation;

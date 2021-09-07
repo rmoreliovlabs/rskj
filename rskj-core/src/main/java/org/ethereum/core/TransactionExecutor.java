@@ -615,6 +615,8 @@ public class TransactionExecutor {
                 GasCost.add(gasLeftover, gasRefund) :
                 gasLeftover + gasRefund;
 
+        result.setGasUsed(getGasUsed());
+
         return gasRefund;
     }
 
