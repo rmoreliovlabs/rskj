@@ -110,6 +110,7 @@ public class Trie {
     // shared Path
     private final TrieKeySlice sharedPath;
 
+
     // default constructor, no secure
     public Trie() {
         this(null);
@@ -146,16 +147,13 @@ public class Trie {
      * recognize the old serialization format.
      */
     public static Trie fromMessage(byte[] message, TrieStore store) {
-        Metric metric = profiler.start(Profiler.PROFILING_TYPE.BUILD_TRIE_FROM_MSG);
-
         Trie trie;
+        Metric metric = profiler.start(Profiler.PROFILING_TYPE.BUILD_TRIE_FROM_MSG);
         if (message[0] == ARITY) {
             trie = fromMessageOrchid(message, store);
         } else {
             trie = fromMessageRskip107(ByteBuffer.wrap(message), store);
         }
-
-        trie.encoded = message;
 
         profiler.stop(metric);
 
@@ -349,18 +347,18 @@ public class Trie {
      */
     public Keccak256 getHash() {
         if (this.hash != null) {
-            return this.hash;
+            return this.hash.copy();
         }
 
         if (isEmptyTrie()) {
-            return EMPTY_HASH;
+            return EMPTY_HASH.copy();
         }
 
         byte[] message = this.toMessage();
 
         this.hash = new Keccak256(Keccak256Helper.keccak256(message));
 
-        return this.hash;
+        return this.hash.copy();
     }
 
     /**
@@ -368,18 +366,18 @@ public class Trie {
      */
     public Keccak256 getHashOrchid(boolean isSecure) {
         if (this.hashOrchid != null) {
-            return this.hashOrchid;
+            return this.hashOrchid.copy();
         }
 
         if (isEmptyTrie()) {
-            return EMPTY_HASH;
+            return EMPTY_HASH.copy();
         }
 
         byte[] message = this.toMessageOrchid(isSecure);
 
         this.hashOrchid = new Keccak256(Keccak256Helper.keccak256(message));
 
-        return this.hashOrchid;
+        return this.hashOrchid.copy();
     }
 
     /**
@@ -496,7 +494,7 @@ public class Trie {
             internalToMessage();
         }
 
-        return encoded;
+        return cloneArray(encoded);
     }
 
     public int getMessageLength() {
@@ -841,7 +839,7 @@ public class Trie {
             return new Trie(
                     this.store,
                     this.sharedPath,
-                    value,
+                    cloneArray(value),
                     this.left,
                     this.right,
                     getDataLength(value),
@@ -851,7 +849,7 @@ public class Trie {
         }
 
         if (isEmptyTrie()) {
-            return new Trie(this.store, key, value);
+            return new Trie(this.store, key, cloneArray(value));
         }
 
         // this bit will be implicit and not present in a shared path
@@ -970,7 +968,7 @@ public class Trie {
             checkValueLengthAfterRetrieve();
         }
 
-        return value;
+        return cloneArray(value);
     }
 
     /**
@@ -1028,6 +1026,10 @@ public class Trie {
 
     public Iterator<IterationElement> getPreOrderIterator() {
         return new PreOrderIterator(this);
+    }
+
+    private static byte[] cloneArray(byte[] array) {
+        return array == null ? null : Arrays.copyOf(array, array.length);
     }
 
     public Iterator<IterationElement> getPostOrderIterator() {
