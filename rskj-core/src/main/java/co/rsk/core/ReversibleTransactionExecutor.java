@@ -26,8 +26,8 @@ import org.ethereum.core.Block;
 import org.ethereum.core.Repository;
 import org.ethereum.core.Transaction;
 import org.ethereum.core.TransactionExecutor;
+import org.ethereum.vm.GasCost;
 import org.ethereum.vm.program.ProgramResult;
-import org.ethereum.vm.program.GasExactimationCallWithValue;
 
 /**
  * Encapsulates the logic to execute a transaction in an
@@ -58,9 +58,11 @@ public class ReversibleTransactionExecutor {
                 fromAddress
         );
 
-        return  executor.getProgramCallWithValuePerformed() ?
-                new Pair<>(new GasExactimationCallWithValue(executor.getResult()), executor) :
-                new Pair(executor.getResult(), executor);
+        if(executor.getProgramCallWithValuePerformed()) {
+            executor.getResult().addDeductedRefund(GasCost.STIPEND_CALL);
+        }
+
+        return new Pair(executor.getResult(), executor);
     }
 
     public ProgramResult executeTransaction(
