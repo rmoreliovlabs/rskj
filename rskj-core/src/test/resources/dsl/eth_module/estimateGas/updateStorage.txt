@@ -51,9 +51,18 @@ transaction_build tx02
     gas 6400000
     build
 
+transaction_build tx03
+    sender acc1
+    nonce 2
+    contract tx01   # created in tx01
+    value 0
+    data 7b8d56e30000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000002a
+    gas 6400000
+    build
+
 block_build b02
     parent b01
-    transactions tx02
+    transactions tx02 tx03
     gasLimit 6800000
     build
 

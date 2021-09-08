@@ -85,7 +85,7 @@ public class EthModuleDSLTest {
     }
 
     @Test
-    public void testEstimateGasUsingCallWithValue() throws FileNotFoundException, DslProcessorException {
+    public void testEstimateGas_contractCallsWithValueTransfer() throws FileNotFoundException, DslProcessorException {
         World world = World.processedWorld("dsl/eth_module/estimateGas/callWithValue.txt");
 
         // Deploy Check
@@ -104,9 +104,9 @@ public class EthModuleDSLTest {
         final CallArguments args = new CallArguments();
         args.setTo(contractAddress.toHexString());
         args.setData("c3cefd36"); // callWithValue()
-        args.setValue("10000"); // some value
-        args.setNonce("1");
-        args.setGas("10000000");
+        args.setValue(TypeConverter.toQuantityJsonHex(10000)); // some value
+        args.setNonce(TypeConverter.toQuantityJsonHex(1));
+        args.setGas(TypeConverter.toQuantityJsonHex(10000000));
 
         Block block = world.getBlockChain().getBestBlock();
 
@@ -121,12 +121,12 @@ public class EthModuleDSLTest {
         Assert.assertTrue(gasUsed < estimatedGas);
 
         // Call same transaction with estimated gas
-        args.setGas(Long.toString(estimatedGas, 16));
+        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas));
 
         Assert.assertTrue(runWithArgumentsAndBlock(eth, args, block));
 
         // Call same transaction with gas used should fail
-        args.setGas(Long.toString(gasUsed, 16));
+        args.setGas(TypeConverter.toQuantityJsonHex(gasUsed));
 
         Assert.assertFalse(runWithArgumentsAndBlock(eth, args, block));
     }
@@ -137,11 +137,8 @@ public class EthModuleDSLTest {
         return res.getException() == null;
     }
 
-    /**
-     * Any transaction that frees storage state, will produce a gas refund (REFUND_SSTORE)
-     * */
     @Test
-    public void testEstimateGasUsingUpdateStorage() throws FileNotFoundException, DslProcessorException {
+    public void testEstimateGas_storageRefunds() throws FileNotFoundException, DslProcessorException {
         World world = World.processedWorld("dsl/eth_module/estimateGas/updateStorage.txt");
 
         TransactionReceipt deployTransactionReceipt = world.getTransactionReceiptByName("tx01");
@@ -166,8 +163,8 @@ public class EthModuleDSLTest {
         // from non-zero to zero - setValue(1, 0) - it should have a refund
         final CallArguments args = new CallArguments();
         args.setTo(contractAddress); // "6252703f5ba322ec64d3ac45e56241b7d9e481ad";
-        args.setValue("0");
-        args.setNonce("1");
+        args.setValue(TypeConverter.toQuantityJsonHex(0));
+        args.setNonce(TypeConverter.toQuantityJsonHex(1));
         args.setGas(TypeConverter.toQuantityJsonHex(BLOCK_GAS_LIMIT));
         args.setData("7b8d56e3" +
                 "0000000000000000000000000000000000000000000000000000000000000001" +
@@ -213,17 +210,28 @@ public class EthModuleDSLTest {
         args.setGas(Long.toString(updateStoreageEstimatedGas - 1, 16));
         assertFalse(runWithArgumentsAndBlock(eth, args, block));
 
-        // estimate gas for initializing another storage cell
-        args.setGas(TypeConverter.toQuantityJsonHex(BLOCK_GAS_LIMIT));
+        // Check against another already initialized (2,42) storage cell
+        TransactionReceipt anotherInitStorageTransactionReceipt = world.getTransactionReceiptByName("tx02");
+        byte[] status3 = anotherInitStorageTransactionReceipt.getStatus();
+        long anotherInitStorageGasUsed = new BigInteger(1, anotherInitStorageTransactionReceipt.getGasUsed()).longValue();
+
+        assertNotNull(status3);
+        assertEquals(1, status3.length);
+        assertEquals(0x01, status3[0]);
+
+        // Change this storage cell to zero and compare
         args.setData("7b8d56e3" +
                 "0000000000000000000000000000000000000000000000000000000000000002" +
-                "0000000000000000000000000000000000000000000000000000000000000001"); // setValue(2,1)
-        long anotherInitStorageGasUsed = eth.callConstant(args, block).getGasUsed();
-        long anotherInitStorageEstimatedGas = Long.parseLong(eth.estimateGas(args).substring(2), 16);
+                "0000000000000000000000000000000000000000000000000000000000000000");
+        args.setGas(TypeConverter.toQuantityJsonHex(BLOCK_GAS_LIMIT));
 
-        // the estimated gas should be equal to tx02 gas used
+        ProgramResult anotherCallConstantResult = eth.callConstant(args, block);
+        long anotherClearStorageGasUsed = anotherCallConstantResult.getGasUsed();
+        long anotherClearStorageEstimatedGas = Long.parseLong(eth.estimateGas(args).substring("0x".length()), 16);
+
         assertEquals(initStorageGasUsed, anotherInitStorageGasUsed);
-        assertEquals(anotherInitStorageEstimatedGas, anotherInitStorageGasUsed);
+        assertEquals(clearStoreageEstimatedGas, anotherClearStorageEstimatedGas);
+        assertEquals(clearStorageGasUsed, anotherClearStorageGasUsed);
     }
 
     @Test
@@ -242,12 +250,10 @@ public class EthModuleDSLTest {
         EthModule eth = EthModuleUtils.buildBasicEthModule(world);
         long gasEstimationCap = new TestSystemProperties().getGasEstimationCap();
 
-        Long tonsOfGas = gasEstimationCap + 1000000000;
-
         CallArguments callArguments = new CallArguments();
         callArguments.setFrom(sender); // the creator
         callArguments.setTo(contractAddress);  // deployed contract
-        callArguments.setGas(tonsOfGas.toString()); // exceeding the gas cap
+        callArguments.setGas(TypeConverter.toQuantityJsonHex(gasEstimationCap + 1000000000)); // exceeding the gas cap
         callArguments.setData("31fe52e8"); // call outOfGas()
 
         String estimatedGas = eth.estimateGas(callArguments);

@@ -43,8 +43,6 @@ import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.math.BigInteger;
-
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -54,6 +52,7 @@ import static org.mockito.Mockito.*;
 public class EthModuleTest {
 
     private TestSystemProperties config = new TestSystemProperties();
+    private String anyAddress = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
     @Test
     public void callSmokeTest() {
@@ -207,7 +206,9 @@ public class EthModuleTest {
 
 		assertEquals(txExpectedResult, txResult);
 	}
-    
+
+
+
     @Test
     public void getCode() {
         byte[] expectedCode = new byte[] {1, 2, 3};
@@ -238,28 +239,6 @@ public class EthModuleTest {
 
         String addr = eth.getCode(TestUtils.randomAddress().toHexString(), "pending");
         Assert.assertThat(Hex.decode(addr.substring("0x".length())), is(expectedCode));
-    }
-
-    String anyAddress = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-
-    private CallArguments transactionParameters() {
-        RskAddress addr1 = new RskAddress(anyAddress);
-        BigInteger value = BigInteger.valueOf(0); // do not pass value
-        BigInteger gasPrice = BigInteger.valueOf(8);
-        BigInteger gasLimit = BigInteger.valueOf(500000); // large enough
-        String data = "0xff";
-
-        CallArguments args = new CallArguments();
-        args.setFrom(TypeConverter.toJsonHex(addr1.getBytes()));
-        args.setTo(args.getFrom());  // same account
-        args.setData(data);
-        args.setGas(TypeConverter.toQuantityJsonHex(gasLimit));
-        args.setGasPrice(TypeConverter.toQuantityJsonHex(gasPrice));
-        args.setValue(value.toString());
-        // Nonce doesn't matter
-        args.setNonce("0");
-
-        return args;
     }
 
 
