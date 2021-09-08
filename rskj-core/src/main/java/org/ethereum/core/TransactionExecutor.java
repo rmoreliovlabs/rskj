@@ -554,7 +554,12 @@ public class TransactionExecutor {
     }
 
     private void localCallFinalization() {
-        if(result != null && result.getException() != null) {
+        if(result == null) {
+            logger.warn("this is unexpected, a transaction executor should always have a non null result");
+            return;
+        }
+
+        if(result.getException() != null) {
             logger.warn("Local call produced an execution error: {}",
                     executionError != null ? executionError : "unexpected");
             return;
