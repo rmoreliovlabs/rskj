@@ -40,6 +40,7 @@ import org.junit.Test;
 import java.io.FileNotFoundException;
 import java.math.BigInteger;
 
+import static org.ethereum.vm.GasCost.REFUND_SSTORE;
 import static org.junit.Assert.*;
 
 /**
@@ -171,13 +172,17 @@ public class EthModuleDSLTest {
         args.setData("7b8d56e3" +
                 "0000000000000000000000000000000000000000000000000000000000000001" +
                 "0000000000000000000000000000000000000000000000000000000000000000"); // setValue(1,0)
-        long clearStorageGasUsed = eth.callConstant(args, block).getGasUsed();
+
+        ProgramResult callConstantResult = eth.callConstant(args, block);
+
+        long clearStorageGasUsed = callConstantResult.getGasUsed();
         long clearStoreageEstimatedGas = Long.parseLong(eth.estimateGas(args).substring(2), 16);
 
-        // The estimated gas should be less than the gas used for initializing a storage cell
+        assertTrue( 0 < clearStorageGasUsed && clearStorageGasUsed < initStorageGasUsed);
         assertTrue(clearStoreageEstimatedGas < initStorageGasUsed);
-        assertTrue(clearStorageGasUsed < initStorageGasUsed);
-        assertEquals(clearStoreageEstimatedGas, clearStorageGasUsed);
+        assertTrue(clearStoreageEstimatedGas > clearStorageGasUsed);
+        assertEquals(clearStoreageEstimatedGas,
+                clearStorageGasUsed + callConstantResult.getDeductedRefund());
 
         // Call same transaction with estimated gas
         args.setGas(TypeConverter.toQuantityJsonHex(clearStoreageEstimatedGas));

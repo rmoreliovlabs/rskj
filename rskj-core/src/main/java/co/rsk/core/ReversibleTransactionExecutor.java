@@ -21,7 +21,6 @@ package co.rsk.core;
 
 import co.rsk.db.RepositoryLocator;
 import co.rsk.db.RepositorySnapshot;
-import com.sun.tools.javac.util.Pair;
 import org.ethereum.core.Block;
 import org.ethereum.core.Repository;
 import org.ethereum.core.Transaction;

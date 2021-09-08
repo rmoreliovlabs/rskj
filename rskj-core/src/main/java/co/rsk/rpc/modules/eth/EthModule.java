@@ -31,7 +31,6 @@ import co.rsk.peg.BridgeSupportFactory;
 import co.rsk.rpc.ExecutionBlockRetriever;
 import co.rsk.trie.TrieStoreImpl;
 import com.google.common.annotations.VisibleForTesting;
-import com.sun.tools.javac.util.Pair;
 import org.ethereum.core.*;
 import org.ethereum.datasource.HashMapDB;
 import org.ethereum.db.MutableRepository;
@@ -50,7 +49,8 @@ import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Arrays.copyOfRange;
-import static org.ethereum.rpc.TypeConverter.*;
+import static org.ethereum.rpc.TypeConverter.stringHexToBigInteger;
+import static org.ethereum.rpc.TypeConverter.toUnformattedJsonHex;
 import static org.ethereum.rpc.exception.RskJsonRpcRequestException.invalidParamError;
 
 // TODO add all RPC methods

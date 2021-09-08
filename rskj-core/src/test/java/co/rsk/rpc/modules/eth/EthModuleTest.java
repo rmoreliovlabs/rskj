@@ -20,7 +20,6 @@ package co.rsk.rpc.modules.eth;
 
 import co.rsk.config.BridgeConstants;
 import co.rsk.config.TestSystemProperties;
-import co.rsk.core.Coin;
 import co.rsk.core.ReversibleTransactionExecutor;
 import co.rsk.core.RskAddress;
 import co.rsk.core.Wallet;
@@ -30,7 +29,6 @@ import co.rsk.db.RepositoryLocator;
 import co.rsk.net.TransactionGateway;
 import co.rsk.peg.BridgeSupportFactory;
 import co.rsk.rpc.ExecutionBlockRetriever;
-import co.rsk.test.World;
 import org.bouncycastle.util.BigIntegers;
 import org.bouncycastle.util.encoders.Hex;
 import org.ethereum.TestUtils;
@@ -40,17 +38,14 @@ import org.ethereum.datasource.HashMapDB;
 import org.ethereum.rpc.CallArguments;
 import org.ethereum.rpc.TypeConverter;
 import org.ethereum.rpc.exception.RskJsonRpcRequestException;
-import org.ethereum.util.ByteUtil;
 import org.ethereum.util.EthModuleUtils;
 import org.ethereum.util.TransactionTestHelper;
-import org.ethereum.vm.program.GasExactimationCallWithValue;
 import org.ethereum.vm.program.ProgramResult;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
@@ -288,8 +283,7 @@ public class EthModuleTest {
         programResult.addDeductedRefund(10000);
         programResult.spendGas(30000);
 
-        GasExactimationCallWithValue gasExactimationCallWithValue = new GasExactimationCallWithValue(programResult);
-        doReturn(gasExactimationCallWithValue).when(executor).estimateGas(any(),any(),
+        doReturn(programResult).when(executor).estimateGas(any(),any(),
                 any(),any(),any(),any(),any(),any());
 
         EthModule eth = new EthModule(
@@ -310,25 +304,18 @@ public class EthModuleTest {
                 config.getGasEstimationCap()
         );
 
-        RskAddress addr1 = new RskAddress(anyAddress);
-        BigInteger value = BigInteger.valueOf(0); // do not pass value
-        BigInteger gasPrice = BigInteger.valueOf(8);
-        BigInteger gasLimit = BigInteger.valueOf(500000); // large enough
-        String data = "0xff";
-
         CallArguments args = new CallArguments();
-        args.setFrom(TypeConverter.toJsonHex(addr1.getBytes()));
+        args.setFrom(TypeConverter.toJsonHex(new RskAddress(anyAddress).getBytes()));
         args.setTo(args.getFrom());  // same account
-        args.setData(data);
-        args.setGas(TypeConverter.toQuantityJsonHex(gasLimit));
-        args.setGasPrice(TypeConverter.toQuantityJsonHex(gasPrice));
-        args.setValue(value.toString());
-        // Nonce doesn't matter
-        args.setNonce("0");
+        args.setNonce("0"); // nonce doesn't matter
+        args.setGas(TypeConverter.toQuantityJsonHex(500000)); // large enough
+        args.setGasPrice(TypeConverter.toQuantityJsonHex(8));
+        args.setValue(TypeConverter.toQuantityJsonHex(0)); // do not pass value
+        args.setData("0xff");
 
-        String gas = eth.estimateGas(args);
-        byte[] gasReturned = Hex.decode(gas.substring("0x".length()));
-        Assert.assertThat(gasReturned, is(BigIntegers.asUnsignedByteArray(BigInteger.valueOf(42300))));
+        String estimatedGas = eth.estimateGas(args);
+
+        Assert.assertEquals(40000, TypeConverter.JSonHexToLong(estimatedGas));
     }
 
     @Test
