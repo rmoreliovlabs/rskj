@@ -153,7 +153,7 @@ public class EthModule
             Block bestBlock = blockchain.getBestBlock();
             CallArgumentsToByteArray hexArgs = new CallArgumentsToByteArray(args);
 
-            ProgramResult res = reversibleTransactionExecutor.estimateGas(
+            ProgramResult programResult = reversibleTransactionExecutor.estimateGas(
                     bestBlock,
                     bestBlock.getCoinbase(),
                     hexArgs.getGasPrice(),
@@ -168,7 +168,7 @@ public class EthModule
             // be higher than the block gas limit, so we don't expect any overflow
             // in these operations unless the user provides a malicius gasLimit value.
 
-            final long gasNeeded = res.getGasUsed() + res.getDeductedRefund();
+            final long gasNeeded = programResult.getGasUsed() + programResult.getDeductedRefund();
             estimation = TypeConverter.toQuantityJsonHex(gasNeeded);
 
             return estimation;

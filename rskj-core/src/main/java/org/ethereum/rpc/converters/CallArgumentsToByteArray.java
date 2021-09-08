@@ -30,7 +30,7 @@ import static org.ethereum.rpc.TypeConverter.stringHexToByteArray;
  * Created by martin.medina on 3/7/17.
  */
 public class CallArgumentsToByteArray {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CallArgumentsToByteArray.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CallArgumentsToByteArray.class); //NOSONAR
 
     private final CallArguments args;
 
