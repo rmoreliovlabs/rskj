@@ -46,6 +46,9 @@ import static org.junit.Assert.*;
  * Created by patogallaiovlabs on 28/10/2020.
  */
 public class EthModuleDSLTest {
+
+    public static final long BLOCK_GAS_LIMIT = new TestSystemProperties().getTargetGasLimit();
+
     @Test
     public void testCall_getRevertReason() throws FileNotFoundException, DslProcessorException {
         DslParser parser = DslParser.fromResource("dsl/eth_module/revert_reason.txt");
@@ -156,7 +159,6 @@ public class EthModuleDSLTest {
         assertEquals(1, status2.length);
         assertEquals(0x01, status2[0]);
 
-
         EthModule eth = EthModuleUtils.buildBasicEthModule(world);
         Block block = world.getBlockChain().getBestBlock();
 
@@ -165,7 +167,7 @@ public class EthModuleDSLTest {
         args.setTo(contractAddress); // "6252703f5ba322ec64d3ac45e56241b7d9e481ad";
         args.setValue("0");
         args.setNonce("1");
-        args.setGas("10000000");
+        args.setGas(TypeConverter.toQuantityJsonHex(BLOCK_GAS_LIMIT));
         args.setData("7b8d56e3" +
                 "0000000000000000000000000000000000000000000000000000000000000001" +
                 "0000000000000000000000000000000000000000000000000000000000000000"); // setValue(1,0)
@@ -178,15 +180,15 @@ public class EthModuleDSLTest {
         assertEquals(clearStoreageEstimatedGas, clearStorageGasUsed);
 
         // Call same transaction with estimated gas
-        args.setGas(Long.toString(clearStoreageEstimatedGas, 16));
+        args.setGas(TypeConverter.toQuantityJsonHex(clearStoreageEstimatedGas));
         assertTrue(runWithArgumentsAndBlock(eth, args, block));
 
         // Call same transaction with estimated gas minus 1
-        args.setGas(Long.toString(clearStoreageEstimatedGas - 1, 16));
+        args.setGas(TypeConverter.toQuantityJsonHex(clearStoreageEstimatedGas - 1));
         assertFalse(runWithArgumentsAndBlock(eth, args, block));
 
         // estimate gas for updating a storage cell from non-zero to non-zero
-        args.setGas("10000000");
+        args.setGas(TypeConverter.toQuantityJsonHex(BLOCK_GAS_LIMIT));
         args.setData("7b8d56e3" +
                 "0000000000000000000000000000000000000000000000000000000000000001" +
                 "0000000000000000000000000000000000000000000000000000000000000001"); // setValue(1,1)
@@ -207,7 +209,7 @@ public class EthModuleDSLTest {
         assertFalse(runWithArgumentsAndBlock(eth, args, block));
 
         // estimate gas for initializing another storage cell
-        args.setGas("10000000");
+        args.setGas(TypeConverter.toQuantityJsonHex(BLOCK_GAS_LIMIT));
         args.setData("7b8d56e3" +
                 "0000000000000000000000000000000000000000000000000000000000000002" +
                 "0000000000000000000000000000000000000000000000000000000000000001"); // setValue(2,1)
