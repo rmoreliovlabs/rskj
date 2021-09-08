@@ -446,7 +446,7 @@ public class TransactionExecutor {
             cacheTrack.rollback();
             gasLeftover = 0;
             execError(e);
-//            result.setException(e); // todo this might bring new problems
+            result.setException(e);
             profiler.stop(metric);
             return;
         }
@@ -554,10 +554,11 @@ public class TransactionExecutor {
     }
 
     private void localCallFinalization() {
-//        if(executionError != null && !executionError.isEmpty()) {
-//            logger.warn("Local call produced an execution error: {}", executionError);
-//            return;
-//        }
+        if(result != null && result.getException() != null) {
+            logger.warn("Local call produced an execution error: {}",
+                    executionError != null ? executionError : "unexpected");
+            return;
+        }
 
         logger.trace("Finalize transaction gas estimation, txHash: {}, nonce:{},", tx.getHash(), toBI(tx.getNonce()));
 
