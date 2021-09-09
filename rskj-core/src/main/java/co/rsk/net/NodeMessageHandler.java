@@ -18,25 +18,32 @@
 
 package co.rsk.net;
 
-import co.rsk.config.InternalService;
-import co.rsk.config.RskSystemProperties;
-import co.rsk.core.bc.BlockUtils;
-import co.rsk.crypto.Keccak256;
-import co.rsk.net.messages.*;
-import co.rsk.scoring.EventType;
-import co.rsk.scoring.PeerScoringManager;
-import co.rsk.util.FormatUtils;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.TimeUnit;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import org.ethereum.crypto.HashUtil;
 import org.ethereum.net.server.ChannelManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.PriorityBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+
+import co.rsk.config.InternalService;
+import co.rsk.config.RskSystemProperties;
+import co.rsk.core.bc.BlockUtils;
+import co.rsk.crypto.Keccak256;
+import co.rsk.net.messages.Message;
+import co.rsk.net.messages.MessageType;
+import co.rsk.net.messages.MessageVisitor;
+import co.rsk.scoring.EventType;
+import co.rsk.scoring.PeerScoringManager;
+import co.rsk.util.FormatUtils;
 
 public class NodeMessageHandler implements MessageHandler, InternalService, Runnable {
     private static final Logger logger = LoggerFactory.getLogger("messagehandler");
@@ -44,7 +51,7 @@ public class NodeMessageHandler implements MessageHandler, InternalService, Runn
 
     private static final int MAX_NUMBER_OF_MESSAGES_CACHED = 5000;
     private static final long RECEIVED_MESSAGES_CACHE_DURATION = TimeUnit.MINUTES.toMillis(2);
-
+    
     private final RskSystemProperties config;
     private final BlockProcessor blockProcessor;
     private final SyncProcessor syncProcessor;
@@ -63,9 +70,8 @@ public class NodeMessageHandler implements MessageHandler, InternalService, Runn
 
     private volatile boolean stopped;
 
-    private Map<NodeID, AtomicInteger> mesagesPerNode = new HashMap<>();
-
-    private static final AtomicInteger ZERO = new AtomicInteger(0);
+    private MessageCounter messageCounter = new MessageCounter();
+    private final int messageQueueMaxSize;    
     
     /**
      * @param statusResolver
@@ -86,6 +92,7 @@ public class NodeMessageHandler implements MessageHandler, InternalService, Runn
         this.cleanMsgTimestamp = System.currentTimeMillis();
         this.peerScoringManager = peerScoringManager;
         this.queue = new PriorityBlockingQueue<>(11, new MessageTask.TaskComparator());
+        this.messageQueueMaxSize = config.getMessageQueueMaxSize();
     }
 
     /**
@@ -118,8 +125,7 @@ public class NodeMessageHandler implements MessageHandler, InternalService, Runn
             loggerMessageProcess.debug("Message[{}] processed after [{}] seconds.", message.getMessageType(), timeInSeconds);
         }
         
-        Optional.ofNullable(mesagesPerNode.get(sender.getPeerNodeID())).filter(counter -> counter.get() > 0).ifPresent(AtomicInteger::decrementAndGet);
-        
+        messageCounter.decrement(sender);
     }
 
     @Override
@@ -134,17 +140,59 @@ public class NodeMessageHandler implements MessageHandler, InternalService, Runn
         logger.trace("End post message (queue size {})", this.queue.size());
     }
 
+    /**
+     * verify if the message is allow, and if so, add it to the queue 
+     */
     private void tryAddMessage(Peer sender, Message message) {
     	
-    	boolean allowed = messageIngressControl(sender, message);
+    	double score = sender.score(System.currentTimeMillis(), message.getMessageType());
     	
-    	if(!allowed) {
-    		return;
+    	boolean allowed = controlMessageIngress(sender, message, score);
+    	
+    	if(allowed) {
+    		this.addMessage(sender, message, score);
     	}
+
+    }
+
+    /**
+     * Responds if a message must be allowed 
+     */
+    private boolean controlMessageIngress(Peer sender, Message message, double score) {
+    
+    	return 
+    		allowByScore(sender, message, score) && 
+    		allowByMessageCount(sender) && 
+    		allowByMessageIsUnique(sender, message); // prevent repeated is the most expensive and MUST be the last 
+
+    }
+    
+    /**
+     * asset message count is above threshold defined in config
+     */
+    private boolean allowByMessageCount(Peer sender) {
+    	return (messageCounter.getValue(sender) < messageQueueMaxSize);
+    }
+    
+    /**
+     * assert score is acceptable 
+     */
+    private boolean allowByScore(Peer sender, Message message, double score) {
+    	return score >= 0;
+    }
+    
+    /**
+     * assert message was not received twice
+     * add it to a map and manages the state of the map
+     * record event if message is repeated 
+     */
+    private boolean allowByMessageIsUnique(Peer sender, Message message) {
     	
+    	Keccak256 encodedMessage = new Keccak256(HashUtil.keccak256(message.getEncoded()));
+
+    	boolean contains = receivedMessages.contains(encodedMessage);
     	
-        Keccak256 encodedMessage = new Keccak256(HashUtil.keccak256(message.getEncoded()));
-        if (!receivedMessages.contains(encodedMessage)) {
+        if (!contains) {
             if (message.getMessageType() == MessageType.BLOCK_MESSAGE || message.getMessageType() == MessageType.TRANSACTIONS) {
                 if (this.receivedMessages.size() >= MAX_NUMBER_OF_MESSAGES_CACHED) {
                     this.receivedMessages.clear();
@@ -152,36 +200,24 @@ public class NodeMessageHandler implements MessageHandler, InternalService, Runn
                 this.receivedMessages.add(encodedMessage);
             }
 
-            double score = sender.score(System.currentTimeMillis(), message.getMessageType());
-
-            this.addMessage(sender, message, score);
         } else {
             recordEvent(sender, EventType.REPEATED_MESSAGE);
             logger.trace("Received message already known, not added to the queue");
         }
-    }
-
-    /**
-     * Responds if a message must be allowed 
-     */
-    private boolean messageIngressControl(Peer sender, Message message) {
-    
-    	AtomicInteger counter = mesagesPerNode.computeIfAbsent(sender.getPeerNodeID(), m -> new AtomicInteger());
-
-    	return (counter.get() < config.getMessageQueueMaxSize());
+    	
+        return (contains == false);
     }
     
     private void addMessage(Peer sender, Message message, double score) {
     	
     	boolean messageAdded = this.queue.offer(new MessageTask(sender, message, score));
     	
-        if (score >= 0 && !messageAdded) {
+    	if(messageAdded) {
+    		messageCounter.increment(sender);
+    	} else {
             logger.warn("Unexpected path. Is message queue bounded now?");
         }
         
-        if(messageAdded) {
-        	Optional.ofNullable(mesagesPerNode.get(sender.getPeerNodeID())).ifPresent(AtomicInteger::incrementAndGet);
-        }
     }
 
     private void cleanExpiredMessages() {
@@ -195,7 +231,7 @@ public class NodeMessageHandler implements MessageHandler, InternalService, Runn
 
     @Override
     public void start() {
-        new Thread(this,"message handler").start();
+        new Thread(this, "message handler").start();
     }
 
     @Override
@@ -208,8 +244,8 @@ public class NodeMessageHandler implements MessageHandler, InternalService, Runn
         return this.queue.size();
     }
 
-    public Integer getMessageQueueSize(Peer peer) {
-    	return Optional.ofNullable(mesagesPerNode.get(peer.getPeerNodeID())).orElse(ZERO).intValue();
+    public int getMessageQueueSize(Peer peer) {
+    	return messageCounter.getValue(peer);
     }
 
     @Override
