@@ -1,5 +1,36 @@
 comment
+pragma solidity >=0.6.0 <0.9.0;
 
+// import "hardhat/console.sol";
+
+contract ValueTransfer {
+    function callSstoreClearWithValue(address payable sstoreClearAddress) public payable {
+        // payable(sstoreClearAddress).transfer(msg.value);
+        SStoreClear s = SStoreClear(sstoreClearAddress);
+        s.receiveAndClearStorage{value: msg.value}();
+    }
+}
+
+contract SStoreClear {
+    uint[100] public values;
+
+    event Received(address, uint);
+    event StorageState(uint, uint);
+
+    function receiveAndClearStorage() external payable {
+        emit Received(msg.sender, msg.value);
+        values[1] = 0;
+        emit StorageState(1, values[1]);
+    }
+
+    function initStorage() public {
+        values[1] = 42;
+    }
+
+    function isStorageInit() view public returns (bool) {
+        return values[1] == 42;
+    }
+}
 end
 
 account_new acc1 20000000
@@ -42,7 +73,6 @@ block_connect b02
 assert_best b02
 
 # Init SStoreClear storage
-
 transaction_build tx03
     sender acc1
     nonce 2
@@ -60,3 +90,31 @@ block_build b03
 
 block_connect b03
 assert_best b03
+
+block_build b04
+    parent b03
+    gasLimit 6800000
+    build
+
+block_connect b04
+assert_best b04
+
+# callSstoreClearWithValue("56aa252dd82173789984fa164ee26ce2da9336ff")
+
+transaction_build tx04
+    sender acc1
+    nonce 3
+    contract tx01   # created in tx01
+    value 1
+    data 00c6f1e600000000000000000000000056aa252dd82173789984fa164ee26ce2da9336ff
+    gas 6800000
+    build
+
+block_build b05
+    parent b04
+    transactions tx04
+    gasLimit 6800000
+    build
+
+block_connect b05
+assert_best b05

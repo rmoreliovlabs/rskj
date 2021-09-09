@@ -38,6 +38,7 @@ import org.ethereum.rpc.CallArguments;
 import org.ethereum.rpc.TypeConverter;
 import org.ethereum.rpc.converters.CallArgumentsToByteArray;
 import org.ethereum.rpc.exception.RskJsonRpcRequestException;
+import org.ethereum.vm.GasCost;
 import org.ethereum.vm.PrecompiledContracts;
 import org.ethereum.vm.program.ProgramResult;
 import org.slf4j.Logger;
@@ -163,12 +164,12 @@ public class EthModule
                     hexArgs.getData(),
                     hexArgs.getFromAddress()
             );
-
             // gasUsed cannot be greater than the gas passed, which should not
             // be higher than the block gas limit, so we don't expect any overflow
             // in these operations unless the user provides a malicius gasLimit value.
 
-            final long gasNeeded = programResult.getGasUsed() + programResult.getDeductedRefund();
+            long gasNeeded = programResult.getGasUsed() + programResult.getDeductedRefund();
+
             estimation = TypeConverter.toQuantityJsonHex(gasNeeded);
 
             return estimation;

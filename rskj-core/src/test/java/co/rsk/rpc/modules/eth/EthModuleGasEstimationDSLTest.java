@@ -5,6 +5,7 @@ import co.rsk.core.RskAddress;
 import co.rsk.test.World;
 import co.rsk.test.dsl.DslProcessorException;
 import org.ethereum.core.Block;
+import org.ethereum.core.Transaction;
 import org.ethereum.core.TransactionReceipt;
 import org.ethereum.rpc.CallArguments;
 import org.ethereum.rpc.TypeConverter;
@@ -12,84 +13,16 @@ import org.ethereum.util.ByteUtil;
 import org.ethereum.util.EthModuleUtils;
 import org.ethereum.vm.GasCost;
 import org.ethereum.vm.program.ProgramResult;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.FileNotFoundException;
 import java.math.BigInteger;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
 
 public class EthModuleGasEstimationDSLTest {
 
     public static final long BLOCK_GAS_LIMIT = new TestSystemProperties().getTargetGasLimit();
-
-    @Test
-    public void estimateGas_callWithValuePlusSStoreRefund() throws FileNotFoundException, DslProcessorException {
-        World world = World.processedWorld("dsl/eth_module/estimateGas/callWithValuePlusSstoreRefund.txt");
-
-        TransactionReceipt deployValueTransferContract = world.getTransactionReceiptByName("tx01");
-        String valueTransferContractAddress = deployValueTransferContract.getTransaction().getContractAddress().toHexString();
-        byte[] status = deployValueTransferContract.getStatus();
-
-        assertNotNull(status);
-        assertEquals(1, status.length);
-        assertEquals(0x01, status[0]);
-
-        TransactionReceipt deploySStoreClear = world.getTransactionReceiptByName("tx02");
-        String sStoreClearContractAddress = deploySStoreClear.getTransaction().getContractAddress().toHexString();
-        byte[] status2 = deployValueTransferContract.getStatus();
-
-        assertNotNull(status2);
-        assertEquals(1, status2.length);
-        assertEquals(0x01, status2[0]);
-
-        TransactionReceipt initStorageTransaction = world.getTransactionReceiptByName("tx03");
-        long initStorageGasUsed = ByteUtil.byteArrayToLong(initStorageTransaction.getGasUsed());
-        byte[] status3 = deployValueTransferContract.getStatus();
-
-        assertNotNull(status3);
-        assertEquals(1, status3.length);
-        assertEquals(0x01, status3[0]);
-
-        EthModule eth = EthModuleUtils.buildBasicEthModule(world);
-        Block block = world.getBlockChain().getBestBlock();
-
-        // check if storage it's initialized by calling isStorageInit function
-        final CallArguments args = new CallArguments();
-        args.setTo(valueTransferContractAddress); // "56aa252dd82173789984fa164ee26ce2da9336ff";
-        args.setValue(TypeConverter.toQuantityJsonHex(0));
-        args.setNonce(TypeConverter.toQuantityJsonHex(3));
-        args.setGas(TypeConverter.toQuantityJsonHex(BLOCK_GAS_LIMIT));
-        args.setData("26d7ae02"); // isStorageInit()
-
-//        eth.callConstant(args, block);
-
-        // call the first contract, it should call and transfer 1 eth to the SStoreClearContract,
-        // then that contract will free a storage cell and emit two events
-        args.setTo(valueTransferContractAddress); // "56aa252dd82173789984fa164ee26ce2da9336ff";
-        args.setValue(TypeConverter.toQuantityJsonHex(1));
-        args.setNonce(TypeConverter.toQuantityJsonHex(4));
-        args.setGas(TypeConverter.toQuantityJsonHex(BLOCK_GAS_LIMIT));
-        args.setData("00c6f1e6000000000000000000000000" +
-                sStoreClearContractAddress); // callSstoreClearWithValue("56aa252dd82173789984fa164ee26ce2da9336ff")
-
-        ProgramResult clearStoragePlusCallWithValue = eth.callConstant(args, block);
-        long clearStoragePlusCallWithValueGasUsed = clearStoragePlusCallWithValue.getGasUsed();
-        long clearStoreageEstimatedGas = Long.parseLong(eth.estimateGas(args).substring("0x".length()), 16);
-
-        assertTrue( 0 < clearStoragePlusCallWithValueGasUsed && clearStoragePlusCallWithValueGasUsed < initStorageGasUsed);
-        assertTrue(clearStoreageEstimatedGas > clearStoragePlusCallWithValueGasUsed);
-        assertEquals(clearStoreageEstimatedGas, // todo(fedejinich) according to this tests, gasDeductingRefund it's omitting the stipend cost
-                clearStoragePlusCallWithValueGasUsed + clearStoragePlusCallWithValue.getDeductedRefund() + GasCost.STIPEND_CALL);
-    }
-
-    public boolean runWithArgumentsAndBlock(EthModule ethModule, CallArguments args, Block block) {
-        ProgramResult res = ethModule.callConstant(args, block);
-
-        return res.getException() == null;
-    }
 
     @Test
     public void testEstimateGas_contractCallsWithValueTransfer() throws FileNotFoundException, DslProcessorException {
@@ -100,10 +33,17 @@ public class EthModuleGasEstimationDSLTest {
         byte[] status = deployTransactionReceipt.getStatus();
         RskAddress contractAddress = deployTransactionReceipt.getTransaction().getContractAddress();
 
-        Assert.assertNotNull(status);
-        Assert.assertEquals(1, status.length);
-        Assert.assertEquals(0x01, status[0]);
-        Assert.assertEquals("6252703f5ba322ec64d3ac45e56241b7d9e481ad", contractAddress.toHexString());
+        assertNotNull(status);
+        assertEquals(1, status.length);
+        assertEquals(0x01, status[0]);
+        assertEquals("6252703f5ba322ec64d3ac45e56241b7d9e481ad", contractAddress.toHexString());
+
+        TransactionReceipt callWithValueReceipt = world.getTransactionReceiptByName("tx02");
+        byte[] status2 = callWithValueReceipt.getStatus();
+
+        assertNotNull(status2);
+        assertEquals(1, status2.length);
+        assertEquals(0x01, status2[0]);
 
         // Call with value estimation
         EthModule eth = EthModuleUtils.buildBasicEthModule(world);
@@ -112,30 +52,36 @@ public class EthModuleGasEstimationDSLTest {
         args.setTo(contractAddress.toHexString());
         args.setData("c3cefd36"); // callWithValue()
         args.setValue(TypeConverter.toQuantityJsonHex(10000)); // some value
-        args.setNonce(TypeConverter.toQuantityJsonHex(1));
-        args.setGas(TypeConverter.toQuantityJsonHex(10000000));
+        args.setNonce(TypeConverter.toQuantityJsonHex(3));
+        args.setGas(TypeConverter.toQuantityJsonHex(BLOCK_GAS_LIMIT));
 
-        Block block = world.getBlockChain().getBestBlock();
+        Block block = world.getBlockChain().getBlockByNumber(1);//.getBestBlock();
 
         // Evaluate the gas used
         long gasUsed = eth.callConstant(args, block).getGasUsed();
+        assertEquals(ByteUtil.byteArrayToLong(callWithValueReceipt.getGasUsed()), gasUsed);
 
         // Estimate the gas to use
-        String estimation = eth.estimateGas(args);
-        long estimatedGas = Long.parseLong(estimation.substring(2), 16);
+        long estimatedGas = Long.parseLong(eth.estimateGas(args).substring(2), 16);
 
         // The estimated gas should be greater than the gas used in the call
-        Assert.assertTrue(gasUsed < estimatedGas);
+        assertTrue(gasUsed < estimatedGas);
+        assertEquals(GasCost.STIPEND_CALL, estimatedGas - gasUsed);
 
         // Call same transaction with estimated gas
         args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas));
-
-        Assert.assertTrue(runWithArgumentsAndBlock(eth, args, block));
+        assertTrue(runWithArgumentsAndBlock(eth, args, block));
 
         // Call same transaction with gas used should fail
         args.setGas(TypeConverter.toQuantityJsonHex(gasUsed));
+        assertFalse(runWithArgumentsAndBlock(eth, args, block));
 
-        Assert.assertFalse(runWithArgumentsAndBlock(eth, args, block));
+        // Call same transaction with estimatedGas - 1, should fail
+        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 85 - 1)); // todo so it's overestimating by 85, why?
+        assertFalse(runWithArgumentsAndBlock(eth, args, block));
+
+        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 85));
+        assertTrue(runWithArgumentsAndBlock(eth, args, block)); // todo this shouldn't happen
     }
 
     @Test
@@ -259,6 +205,136 @@ public class EthModuleGasEstimationDSLTest {
 
         String estimatedGas = eth.estimateGas(callArguments);
 
-        Assert.assertEquals(gasEstimationCap, Long.decode(estimatedGas).longValue());
+        assertEquals(gasEstimationCap, Long.decode(estimatedGas).longValue());
+    }
+
+    /**
+     * This was the first implementation, the next test is a refactor/simplification of this one
+     * */
+    @Test
+    public void estimateGas_callWithValuePlusSStoreRefund() throws FileNotFoundException, DslProcessorException {
+        World world = World.processedWorld("dsl/eth_module/estimateGas/callWithValuePlusSstoreRefund.txt");
+
+        TransactionReceipt deployValueTransferContract = world.getTransactionReceiptByName("tx01");
+        String valueTransferContractAddress = deployValueTransferContract.getTransaction().getContractAddress().toHexString();
+        byte[] status = deployValueTransferContract.getStatus();
+
+        assertNotNull(status);
+        assertEquals(1, status.length);
+        assertEquals(0x01, status[0]);
+
+        TransactionReceipt deploySStoreClear = world.getTransactionReceiptByName("tx02");
+        String sStoreClearContractAddress = deploySStoreClear.getTransaction().getContractAddress().toHexString();
+        byte[] status2 = deploySStoreClear.getStatus();
+
+        assertNotNull(status2);
+        assertEquals(1, status2.length);
+        assertEquals(0x01, status2[0]);
+
+        TransactionReceipt initStorageTransaction = world.getTransactionReceiptByName("tx03");
+        long initStorageGasUsed = ByteUtil.byteArrayToLong(initStorageTransaction.getGasUsed());
+        byte[] status3 = initStorageTransaction.getStatus();
+
+        assertNotNull(status3);
+        assertEquals(1, status3.length);
+        assertEquals(0x01, status3[0]);
+
+        TransactionReceipt callSstoreClearWithValueReceipt = world.getTransactionReceiptByName("tx04");
+        long callSstoreClearWithValueGasUsed = ByteUtil.byteArrayToLong(callSstoreClearWithValueReceipt.getGasUsed());
+        byte[] status4 = callSstoreClearWithValueReceipt.getStatus();
+
+        assertNotNull(status4);
+        assertEquals(1, status4.length);
+        assertEquals(0x01, status4[0]);
+
+        EthModule eth = EthModuleUtils.buildBasicEthModule(world);
+        Block block = world.getBlockChain().getBlockByNumber(4); // excluding the callSstoreClear
+
+        // call the first contract, it should call and transfer 1 rbtc to the SStoreClearContract,
+        // then that contract will free a storage cell and emit two events
+        final CallArguments args = new CallArguments();
+        args.setTo(valueTransferContractAddress); // "56aa252dd82173789984fa164ee26ce2da9336ff";
+        args.setValue(TypeConverter.toQuantityJsonHex(1));
+        args.setNonce(TypeConverter.toQuantityJsonHex(4));
+        args.setGas(TypeConverter.toQuantityJsonHex(BLOCK_GAS_LIMIT));
+        args.setData("00c6f1e6000000000000000000000000" +
+                sStoreClearContractAddress); // callSstoreClearWithValue("56aa252dd82173789984fa164ee26ce2da9336ff")
+
+        ProgramResult clearStoragePlusCallWithValue = eth.callConstant(args, block);
+        long clearStoragePlusCallWithValueGasUsed = clearStoragePlusCallWithValue.getGasUsed();
+        assertEquals(callSstoreClearWithValueGasUsed, clearStoragePlusCallWithValueGasUsed);
+        assertEquals(2, clearStoragePlusCallWithValue.getLogInfoList().size());
+
+        long clearStoragePlusCallWithValueEstimatedGas = Long.parseLong(eth.estimateGas(args).substring("0x".length()), 16);
+
+        assertTrue(clearStoragePlusCallWithValueEstimatedGas > clearStoragePlusCallWithValueGasUsed);
+        assertEquals(clearStoragePlusCallWithValueEstimatedGas,
+                clearStoragePlusCallWithValueGasUsed + clearStoragePlusCallWithValue.getDeductedRefund() + GasCost.STIPEND_CALL);  // todo currently eth.callConstant is not processing the STIPEND_CALL refund
+
+        args.setGas(TypeConverter.toQuantityJsonHex(clearStoragePlusCallWithValueGasUsed));
+        assertFalse(runWithArgumentsAndBlock(eth, args, block));
+
+        args.setGas(TypeConverter.toQuantityJsonHex(clearStoragePlusCallWithValueEstimatedGas));
+        assertTrue(runWithArgumentsAndBlock(eth, args, block));
+
+        args.setGas(TypeConverter.toQuantityJsonHex(
+                clearStoragePlusCallWithValueEstimatedGas - GasCost.STIPEND_CALL - 1)); // todo its overestimating by STIPEND_CALL (or maybe it's added twice)
+        assertFalse(runWithArgumentsAndBlock(eth, args, block));
+
+        args.setGas(TypeConverter.toQuantityJsonHex(clearStoragePlusCallWithValueEstimatedGas - GasCost.STIPEND_CALL));
+        assertTrue(runWithArgumentsAndBlock(eth, args, block)); // todo this shouldn't happen
+    }
+
+    @Test
+    public void estimateGas_callWithValuePlusSStoreRefund_refactor() throws FileNotFoundException, DslProcessorException {
+        World world = World.processedWorld("dsl/eth_module/estimateGas/callWithValuePlusSstoreRefundRefactor.txt");
+
+        TransactionReceipt contractDeployReceipt = world.getTransactionReceiptByName("tx01");
+        String contractAddress = contractDeployReceipt.getTransaction().getContractAddress().toHexString();
+        byte[] status = contractDeployReceipt.getStatus();
+
+        assertNotNull(status);
+        assertEquals(1, status.length);
+        assertEquals(0x01, status[0]);
+
+        EthModule eth = EthModuleUtils.buildBasicEthModule(world);
+        Block block = world.getBlockChain().getBlockByNumber(1);
+
+        // call clearStorageAndSendValue, it should estimate correctly the stipend cost and the gas refund
+        final CallArguments args = new CallArguments();
+        args.setTo(contractAddress);
+        args.setValue(TypeConverter.toQuantityJsonHex(1));
+        args.setNonce(TypeConverter.toQuantityJsonHex(1));
+        args.setGas(TypeConverter.toQuantityJsonHex(BLOCK_GAS_LIMIT));
+        args.setData("5b3f8140"); // clearStorageAndSendValue()
+
+        // todo it'd be nice to test if a callConstant consumes exact the same gas amount than a regular call
+        ProgramResult callConstant = eth.callConstant(args, block);
+        long callConstantGasUsed = callConstant.getGasUsed();
+
+        long estimatedGas = Long.parseLong(eth.estimateGas(args).substring("0x".length()), 16);
+
+        assertTrue(estimatedGas > callConstantGasUsed);
+        assertEquals(estimatedGas,
+                callConstantGasUsed + callConstant.getDeductedRefund() + GasCost.STIPEND_CALL);  // todo currently eth.callConstant is not processing the STIPEND_CALL refund
+
+        args.setGas(TypeConverter.toQuantityJsonHex(callConstantGasUsed));
+        assertFalse(runWithArgumentsAndBlock(eth, args, block));
+
+        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas));
+        assertTrue(runWithArgumentsAndBlock(eth, args, block));
+
+        args.setGas(TypeConverter.toQuantityJsonHex(
+                estimatedGas - GasCost.STIPEND_CALL - 1)); // todo it's overestimating by STIPEND_CALL (or maybe it's added twice)
+        assertFalse(runWithArgumentsAndBlock(eth, args, block));
+
+        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 85 - 1));
+        assertTrue(runWithArgumentsAndBlock(eth, args, block)); // todo this shouldn't happen, 85 again!
+    }
+
+    public boolean runWithArgumentsAndBlock(EthModule ethModule, CallArguments args, Block block) {
+        ProgramResult res = ethModule.callConstant(args, block);
+
+        return res.getException() == null;
     }
 }
