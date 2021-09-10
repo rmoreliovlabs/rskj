@@ -43,9 +43,9 @@ public class ReversibleTransactionExecutor {
         this.transactionExecutorFactory = transactionExecutorFactory;
     }
 
-    public ProgramResult estimateGas(Block executionBlock, RskAddress coinbase, byte[] gasPrice, byte[] gasLimit,
+    public TransactionExecutor estimateGas(Block executionBlock, RskAddress coinbase, byte[] gasPrice, byte[] gasLimit,
                                                                 byte[] toAddress, byte[] value, byte[] data, RskAddress fromAddress) {
-        TransactionExecutor executor = reversibleExecution(
+        return reversibleExecution(
                 repositoryLocator.snapshotAt(executionBlock.getHeader()),
                 executionBlock,
                 coinbase,
@@ -56,12 +56,6 @@ public class ReversibleTransactionExecutor {
                 data,
                 fromAddress
         );
-
-        if(executor.getProgramCallWithValuePerformed()) {
-            executor.getResult().addDeductedRefund(GasCost.STIPEND_CALL);
-        }
-
-        return executor.getResult();
     }
 
     public ProgramResult executeTransaction(

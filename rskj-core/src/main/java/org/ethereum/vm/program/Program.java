@@ -880,7 +880,7 @@ public class Program {
 
         returnDataBuffer = buffer;
 
-        // 5. REFUND THE REMAIN GAS (it will unlock the already included STIPEND_CALL, just on CALLs with value transfer)
+        // 5. REFUND THE REMAIN GAS
         BigInteger refundGas = msg.getGas().value().subtract(toBI(childResult.getGasUsed()));
         if (isPositive(refundGas)) {
             // Since the original gas transferred was < Long.MAX_VALUE then the refund

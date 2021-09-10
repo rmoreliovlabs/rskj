@@ -5,18 +5,25 @@ import co.rsk.core.RskAddress;
 import co.rsk.test.World;
 import co.rsk.test.dsl.DslProcessorException;
 import org.ethereum.core.Block;
+import org.ethereum.core.CallTransaction;
 import org.ethereum.core.Transaction;
 import org.ethereum.core.TransactionReceipt;
+import org.ethereum.crypto.HashUtil;
 import org.ethereum.rpc.CallArguments;
 import org.ethereum.rpc.TypeConverter;
 import org.ethereum.util.ByteUtil;
 import org.ethereum.util.EthModuleUtils;
 import org.ethereum.vm.GasCost;
+import org.ethereum.vm.LogInfo;
 import org.ethereum.vm.program.ProgramResult;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.FileNotFoundException;
 import java.math.BigInteger;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.*;
 
@@ -332,9 +339,96 @@ public class EthModuleGasEstimationDSLTest {
         assertTrue(runWithArgumentsAndBlock(eth, args, block)); // todo this shouldn't happen, 85 again!
     }
 
+    @Test
+    public void estimateGas_nestedCallsWithValue() throws FileNotFoundException, DslProcessorException {
+        World world = World.processedWorld("dsl/eth_module/estimateGas/nestedCallsWithValue.txt");
+
+        TransactionReceipt contractDeployA = world.getTransactionReceiptByName("tx01");
+        String contractAddressA = contractDeployA.getTransaction().getContractAddress().toHexString();
+        byte[] status = contractDeployA.getStatus();
+
+        assertNotNull(status);
+        assertEquals(1, status.length);
+        assertEquals(0x01, status[0]);
+        assertEquals("6252703f5ba322ec64d3ac45e56241b7d9e481ad", contractAddressA);
+
+        TransactionReceipt contractDeployB = world.getTransactionReceiptByName("tx02");
+        String contractAddressB = contractDeployB.getTransaction().getContractAddress().toHexString();
+        byte[] status2 = contractDeployB.getStatus();
+
+        assertNotNull(status2);
+        assertEquals(1, status2.length);
+        assertEquals(0x01, status2[0]);
+        assertEquals("56aa252dd82173789984fa164ee26ce2da9336ff", contractAddressB);
+
+        TransactionReceipt contractDeployC = world.getTransactionReceiptByName("tx03");
+        String contractAddressC = contractDeployC.getTransaction().getContractAddress().toHexString();
+        byte[] status3 = contractDeployC.getStatus();
+
+        assertNotNull(status3);
+        assertEquals(1, status3.length);
+        assertEquals(0x01, status3[0]);
+        assertEquals("27444fbce96cb2d27b94e116d1506d7739c05862", contractAddressC);
+
+        EthModule eth = EthModuleUtils.buildBasicEthModule(world);
+        Block block = world.getBlockChain().getBestBlock();
+
+        // call callAddressWithValue, it should start the nested calls
+        final CallArguments args = new CallArguments();
+        args.setTo(contractAddressA);
+        args.setValue(TypeConverter.toQuantityJsonHex(1));
+        args.setNonce(TypeConverter.toQuantityJsonHex(6));
+        args.setGas(TypeConverter.toQuantityJsonHex(BLOCK_GAS_LIMIT));
+        args.setData("fb60f709"); // callAddressWithValue()
+
+        ProgramResult callConstant = eth.callConstant(args, block);
+        long callConstantGasUsed = callConstant.getGasUsed();
+        assertEquals(3, callConstant.getLogInfoList().size());
+        assertEvents(callConstant, "NestedCallWV", 2);
+        assertEvents(callConstant, "LastCall", 1);
+
+        long estimatedGas = Long.parseLong(eth.estimateGas(args).substring("0x".length()), 16);
+        assertEquals(estimatedGas, callConstantGasUsed);
+
+        args.setGas(TypeConverter.toQuantityJsonHex(callConstantGasUsed));
+        assertTrue(runWithArgumentsAndBlock(eth, args, block));
+
+        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas));
+        assertTrue(runWithArgumentsAndBlock(eth, args, block));
+
+        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 1));
+        assertFalse(runWithArgumentsAndBlock(eth, args, block));
+    }
+
     public boolean runWithArgumentsAndBlock(EthModule ethModule, CallArguments args, Block block) {
         ProgramResult res = ethModule.callConstant(args, block);
 
         return res.getException() == null;
+    }
+
+
+    // todo this is duplicated code, should be extracted into a test util
+    /**
+     * Checks how many times an event is contained on a receipt
+     * */
+    public void assertEvents(ProgramResult programResult, String eventSignature, int times) {
+        Stream<String> events = programResult.getLogInfoList().stream().map(logInfo -> eventSignature(logInfo));
+        List<String> eventsSignature = events.filter(event -> isExpectedEventSignature(event, eventSignature,  new String[0]))
+                .collect(Collectors.toList());
+
+        assertEquals(times, eventsSignature.size());
+    }
+
+    private static String eventSignature(LogInfo logInfo) {
+        // The first topic usually consists of the signature
+        // (a keccak256 hash) of the name of the event that occurred
+        return logInfo.getTopics().get(0).toString();
+    }
+
+    private static boolean isExpectedEventSignature(String encodedEvent, String expectedEventSignature, String[] eventTypeParams) {
+        CallTransaction.Function fun = CallTransaction.Function.fromSignature(expectedEventSignature, eventTypeParams);
+        String encodedExpectedEvent = HashUtil.toPrintableHash(fun.encodeSignatureLong());
+
+        return encodedEvent.equals(encodedExpectedEvent);
     }
 }
