@@ -577,6 +577,8 @@ public class TransactionExecutor {
 
         long gasRefund = refundGas();
 
+        result.setGasUsed(getGasUsed());
+
         TransactionExecutionSummary summary = buildTransactionExecutionSummary(summaryBuilder, gasRefund);
 
         logger.trace("Pay total refund to sender: [{}], refund val: [{}]", tx.getSender(), summary.getRefund());
@@ -620,8 +622,6 @@ public class TransactionExecutor {
         gasLeftover = activations.isActive(ConsensusRule.RSKIP136) ?
                 GasCost.add(gasLeftover, gasRefund) :
                 gasLeftover + gasRefund;
-
-        result.setGasUsed(getGasUsed());
 
         return gasRefund;
     }
