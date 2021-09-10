@@ -87,8 +87,9 @@ public class EthModuleGasEstimationDSLTest {
         args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 85 - 1)); // todo so it's overestimating by 85, why?
         assertFalse(runWithArgumentsAndBlock(eth, args, block));
 
-        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 85));
-        assertTrue(runWithArgumentsAndBlock(eth, args, block)); // todo this shouldn't happen
+        // Call same transaction with estimatedGas - 1, should fail
+        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 1));
+        assertFalse(runWithArgumentsAndBlock(eth, args, block));
     }
 
     @Test
@@ -216,7 +217,7 @@ public class EthModuleGasEstimationDSLTest {
     }
 
     @Test
-    public void estimateGas_callWithValuePlusSStoreRefund_refactor() throws FileNotFoundException, DslProcessorException {
+    public void estimateGas_callWithValuePlusSStoreRefund() throws FileNotFoundException, DslProcessorException {
         World world = World.processedWorld("dsl/eth_module/estimateGas/callWithValuePlusSstoreRefundRefactor.txt");
 
         TransactionReceipt contractDeployReceipt = world.getTransactionReceiptByName("tx01");
@@ -245,8 +246,7 @@ public class EthModuleGasEstimationDSLTest {
         long estimatedGas = Long.parseLong(eth.estimateGas(args).substring("0x".length()), 16);
 
         assertTrue(estimatedGas > callConstantGasUsed);
-        assertEquals(estimatedGas,
-                callConstantGasUsed + callConstant.getDeductedRefund() + GasCost.STIPEND_CALL);  // todo currently eth.callConstant is not processing the STIPEND_CALL refund
+        assertEquals(estimatedGas, callConstantGasUsed + callConstant.getDeductedRefund() + GasCost.STIPEND_CALL);  // todo currently eth.callConstant is not processing the STIPEND_CALL refund
 
         args.setGas(TypeConverter.toQuantityJsonHex(callConstantGasUsed));
         assertFalse(runWithArgumentsAndBlock(eth, args, block));
@@ -254,12 +254,8 @@ public class EthModuleGasEstimationDSLTest {
         args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas));
         assertTrue(runWithArgumentsAndBlock(eth, args, block));
 
-        args.setGas(TypeConverter.toQuantityJsonHex(
-                estimatedGas - GasCost.STIPEND_CALL - 1)); // todo it's overestimating by STIPEND_CALL (or maybe it's added twice)
+        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 1));
         assertFalse(runWithArgumentsAndBlock(eth, args, block));
-
-        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 85 - 1));
-        assertTrue(runWithArgumentsAndBlock(eth, args, block)); // todo this shouldn't happen, 85 again!
     }
 
     @Test
@@ -311,10 +307,11 @@ public class EthModuleGasEstimationDSLTest {
         assertEvents(callConstant, "LastCall", 1);
 
         long estimatedGas = Long.parseLong(eth.estimateGas(args).substring("0x".length()), 16);
-        assertEquals(estimatedGas, callConstantGasUsed);
+        assertTrue(estimatedGas > callConstantGasUsed);
+        assertEquals(GasCost.STIPEND_CALL, estimatedGas - callConstantGasUsed);
 
         args.setGas(TypeConverter.toQuantityJsonHex(callConstantGasUsed));
-        assertTrue(runWithArgumentsAndBlock(eth, args, block));
+        assertFalse(runWithArgumentsAndBlock(eth, args, block));
 
         args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas));
         assertTrue(runWithArgumentsAndBlock(eth, args, block));

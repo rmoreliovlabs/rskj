@@ -171,9 +171,9 @@ public class EthModule
 
             ProgramResult programResult = executor.getResult();
             long gasNeeded = programResult.getGasUsed() + programResult.getDeductedRefund();
-//            if(executor.getProgramCallWithValuePerformed()) {
-//                gasNeeded += GasCost.STIPEND_CALL;
-//            }
+            if(executor.getProgramCallWithValuePerformed()) {
+                gasNeeded += GasCost.STIPEND_CALL;
+            }
 
             estimation = TypeConverter.toQuantityJsonHex(gasNeeded);
 
