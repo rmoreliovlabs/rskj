@@ -43,11 +43,19 @@ transaction_build tx02
 
 block_build b02
     parent b01
-    transactions tx02
+    #transactions tx02
     build
 
 block_connect b02
 assert_best b02
+
+block_build b03
+    parent b02
+    transactions tx02
+    build
+
+block_connect b03
+assert_best b03
 
 # Back to code test,
 # you must estimate the gas needed

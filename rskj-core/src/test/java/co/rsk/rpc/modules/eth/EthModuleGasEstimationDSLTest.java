@@ -62,7 +62,7 @@ public class EthModuleGasEstimationDSLTest {
         args.setNonce(TypeConverter.toQuantityJsonHex(3));
         args.setGas(TypeConverter.toQuantityJsonHex(BLOCK_GAS_LIMIT));
 
-        Block block = world.getBlockChain().getBlockByNumber(1);//.getBestBlock(); // block 2 contains another tx
+        Block block = world.getBlockChain().getBlockByNumber(2);//.getBestBlock(); // block 2 contains 0 tx
 
         // Evaluate the gas used
         long gasUsed = eth.callConstant(args, block).getGasUsed();
