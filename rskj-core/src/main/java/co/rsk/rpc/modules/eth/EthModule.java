@@ -40,6 +40,7 @@ import org.ethereum.rpc.converters.CallArgumentsToByteArray;
 import org.ethereum.rpc.exception.RskJsonRpcRequestException;
 import org.ethereum.vm.GasCost;
 import org.ethereum.vm.PrecompiledContracts;
+import org.ethereum.vm.program.Program;
 import org.ethereum.vm.program.ProgramResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,6 +76,7 @@ public class EthModule
     private final byte chainId;
     private final long gasEstimationCap;
 
+    private ProgramResult estimationResult; // todo(fedejinich) this should be extracted to a Test class
 
     public EthModule(
             BridgeConstants bridgeConstants,
@@ -177,6 +179,7 @@ public class EthModule
 
             estimation = TypeConverter.toQuantityJsonHex(gasNeeded);
 
+            estimationResult = programResult;
             return estimation;
         } finally {
             LOGGER.debug("eth_estimateGas(): {}", estimation);
@@ -305,5 +308,13 @@ public class EthModule
                 hexArgs.getData(),
                 hexArgs.getFromAddress()
         );
+    }
+
+    public ProgramResult getEstimationResult() {
+        return estimationResult;
+    }
+
+    public void setEstimationResult(ProgramResult estimationResult) {
+        this.estimationResult = estimationResult;
     }
 }
