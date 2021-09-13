@@ -32,7 +32,6 @@ block_build b01
 block_connect b01
 assert_best b01
 
-comment
 transaction_build tx02
     sender acc1
     receiverAddress 6252703f5ba322ec64d3ac45e56241b7d9e481ad
@@ -49,7 +48,6 @@ block_build b02
 
 block_connect b02
 assert_best b02
-end
 
 # Back to code test,
 # you must estimate the gas needed

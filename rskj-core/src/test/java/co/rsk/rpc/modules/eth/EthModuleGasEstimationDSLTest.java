@@ -45,12 +45,12 @@ public class EthModuleGasEstimationDSLTest {
         assertEquals(0x01, status[0]);
         assertEquals("6252703f5ba322ec64d3ac45e56241b7d9e481ad", contractAddress.toHexString());
 
-//        TransactionReceipt callWithValueReceipt = world.getTransactionReceiptByName("tx02");
-//        byte[] status2 = callWithValueReceipt.getStatus();
-//
-//        assertNotNull(status2);
-//        assertEquals(1, status2.length);
-//        assertEquals(0x01, status2[0]);
+        TransactionReceipt callWithValueReceipt = world.getTransactionReceiptByName("tx02");
+        byte[] status2 = callWithValueReceipt.getStatus();
+
+        assertNotNull(status2);
+        assertEquals(1, status2.length);
+        assertEquals(0x01, status2[0]);
 
         // Call with value estimation
         EthModule eth = EthModuleUtils.buildBasicEthModule(world);
@@ -62,11 +62,11 @@ public class EthModuleGasEstimationDSLTest {
         args.setNonce(TypeConverter.toQuantityJsonHex(3));
         args.setGas(TypeConverter.toQuantityJsonHex(BLOCK_GAS_LIMIT));
 
-        Block block = world.getBlockChain().getBestBlock();
+        Block block = world.getBlockChain().getBlockByNumber(1);//.getBestBlock(); // block 2 contains another tx
 
         // Evaluate the gas used
         long gasUsed = eth.callConstant(args, block).getGasUsed();
-//        assertEquals(ByteUtil.byteArrayToLong(callWithValueReceipt.getGasUsed()), gasUsed);
+        assertEquals(ByteUtil.byteArrayToLong(callWithValueReceipt.getGasUsed()), gasUsed);
 
         // Estimate the gas to use
         long estimatedGas = Long.parseLong(eth.estimateGas(args).substring(2), 16);
@@ -84,6 +84,10 @@ public class EthModuleGasEstimationDSLTest {
         // Call same transaction with estimatedGas - 1, should fail
         args.setGas(TypeConverter.toQuantityJsonHex(gasUsed));
         assertFalse(runWithArgumentsAndBlock(eth, args, block));
+
+        // Call same transaction with estimated gas
+//        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas -1));
+//        assertFalse(runWithArgumentsAndBlock(eth, args, block));
 
         // Call same transaction with estimatedGas - 1, should fail
         args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 86 - 1)); // todo it's overestimating by 86, why?
