@@ -85,10 +85,6 @@ public class EthModuleGasEstimationDSLTest {
         args.setGas(TypeConverter.toQuantityJsonHex(gasUsed));
         assertFalse(runWithArgumentsAndBlock(eth, args, block));
 
-        // Call same transaction with estimatedGas
-        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas));
-        assertTrue(runWithArgumentsAndBlock(eth, args, block));
-
         // Call same transaction with estimatedGas - 1, should fail
         args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 86 - 1)); // todo it's overestimating by 86, why?
         assertFalse(runWithArgumentsAndBlock(eth, args, block));
