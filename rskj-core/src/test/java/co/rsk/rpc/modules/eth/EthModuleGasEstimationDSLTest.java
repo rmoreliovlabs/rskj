@@ -69,7 +69,8 @@ public class EthModuleGasEstimationDSLTest {
         assertEquals(ByteUtil.byteArrayToLong(callWithValueReceipt.getGasUsed()), gasUsed);
 
         // Estimate the gas to use
-        long estimatedGas = Long.parseLong(eth.estimateGas(args).substring(2), 16);
+//        long estimatedGas = Long.parseLong(eth.estimateGas(args).substring(2), 16);
+        long estimatedGas = Long.parseLong(eth.internalEstimateGas(args, null, block).substring(2), 16);
         ProgramResult estimationResult = eth.getEstimationResult();
         assertEquals(0, estimationResult.getDeductedRefund());
 

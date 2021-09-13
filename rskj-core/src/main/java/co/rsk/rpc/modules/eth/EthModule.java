@@ -151,8 +151,12 @@ public class EthModule
 
     public String estimateGas(CallArguments args) {
         String estimation = null;
+        Block bestBlock = blockchain.getBestBlock();
+        return internalEstimateGas(args, estimation, bestBlock);
+    }
+
+    public String internalEstimateGas(CallArguments args, String estimation, Block bestBlock) {
         try {
-            Block bestBlock = blockchain.getBestBlock();
             CallArgumentsToByteArray hexArgs = new CallArgumentsToByteArray(args);
 
             TransactionExecutor executor = reversibleTransactionExecutor.estimateGas(
