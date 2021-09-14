@@ -97,6 +97,19 @@ public class EthModuleGasEstimationDSLTest {
         // Call same transaction with estimatedGas - 1, should fail
         args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 86));
         assertTrue(runWithArgumentsAndBlock(eth, args, block));
+
+        // Call same transaction with estimatedGas - 1, should fail
+        long gasNeeded = gasUsed + 2259; // instead of adding the stipend I add the difference between STIPEND and CWV.gasUsed (41), in order to complete de 2300
+        args.setGas(TypeConverter.toQuantityJsonHex(gasNeeded));
+        assertTrue(runWithArgumentsAndBlock(eth, args, block));
+
+        // Call same transaction with estimatedGas - 1, should fail
+        args.setGas(TypeConverter.toQuantityJsonHex(gasNeeded - 45 - 1));
+        assertFalse(runWithArgumentsAndBlock(eth, args, block));
+
+        // Call same transaction with estimatedGas - 1, should fail
+        args.setGas(TypeConverter.toQuantityJsonHex(gasNeeded - 45));
+        assertTrue(runWithArgumentsAndBlock(eth, args, block));
     }
 
     @Test
