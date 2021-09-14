@@ -154,6 +154,7 @@ public class EthModule
         Block bestBlock = blockchain.getBestBlock();
         return internalEstimateGas(args, estimation, bestBlock);
     }
+    private static final Logger LOGGER_FEDE = LoggerFactory.getLogger("fede");
 
     public String internalEstimateGas(CallArguments args, String estimation, Block bestBlock) {
         try {
@@ -175,10 +176,19 @@ public class EthModule
 
             ProgramResult programResult = executor.getResult();
             long gasNeeded = programResult.getGasUsed() + programResult.getDeductedRefund();
+            long shouldBe = programResult.getMaxGasUsed() + programResult.getDeductedRefund();
+            LOGGER_FEDE.error("gasNeeded before STIPEND add {}", gasNeeded);
+            LOGGER_FEDE.error("shouldBe before STIPEND add {}", shouldBe);
             if(executor.getProgramCallWithValuePerformed()) {
                 gasNeeded += GasCost.STIPEND_CALL;
+                shouldBe += GasCost.STIPEND_CALL;
             }
+            LOGGER_FEDE.error("gasNeeded after STIPEND add {}", gasNeeded);
+            LOGGER_FEDE.error("shouldBe after STIPEND add {}", shouldBe);
+
+
             estimation = TypeConverter.toQuantityJsonHex(gasNeeded);
+//            estimation = TypeConverter.toQuantityJsonHex(shouldBe);
             setEstimationResult(programResult);
 
             return estimation;

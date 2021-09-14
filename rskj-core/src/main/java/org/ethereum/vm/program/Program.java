@@ -70,6 +70,8 @@ public class Program {
     private static final Logger logger = LoggerFactory.getLogger("VM");
     private static final Logger gasLogger = LoggerFactory.getLogger("gas");
 
+    private static final Logger LOGGER_FEDE = LoggerFactory.getLogger("fede");
+
     public static final long MAX_MEMORY = (1<<30);
 
     //Max size for stack checks
@@ -181,6 +183,7 @@ public class Program {
 
     public void markCallWithValuePerformed() {
         callWithValuePerformed = true;
+//        result.markCallWithValuePerformed();
     }
 
     public boolean getCallWithValuePerformed() {
@@ -879,6 +882,8 @@ public class Program {
         memorySaveLimited(offset, buffer, size);
 
         returnDataBuffer = buffer;
+
+        LOGGER_FEDE.error("childResult.gasUsed: {}", childResult.getGasUsed());
 
         // 5. REFUND THE REMAIN GAS
         BigInteger refundGas = msg.getGas().value().subtract(toBI(childResult.getGasUsed()));

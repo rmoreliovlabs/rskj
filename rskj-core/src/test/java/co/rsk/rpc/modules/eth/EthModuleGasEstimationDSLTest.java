@@ -17,6 +17,8 @@ import org.ethereum.vm.LogInfo;
 import org.ethereum.vm.program.ProgramResult;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.math.BigInteger;
@@ -30,6 +32,9 @@ public class EthModuleGasEstimationDSLTest {
 
     public static final long BLOCK_GAS_LIMIT = new TestSystemProperties().getTargetGasLimit();
     private ProgramResult localCallResult;
+
+    private static final Logger LOGGER_FEDE = LoggerFactory.getLogger("fede");
+
 
     @Test
     public void testEstimateGas_contractCallsWithValueTransfer() throws FileNotFoundException, DslProcessorException {
@@ -70,7 +75,9 @@ public class EthModuleGasEstimationDSLTest {
 
         // Estimate the gas to use
 //        long estimatedGas = Long.parseLong(eth.estimateGas(args).substring(2), 16);
+        LOGGER_FEDE.error("--------------------START ESTIMATE GAS--------------------");
         long estimatedGas = Long.parseLong(eth.internalEstimateGas(args, null, block).substring(2), 16);
+        LOGGER_FEDE.error("---------------------END ESTIMATE GAS---------------------");
         ProgramResult estimationResult = eth.getEstimationResult();
         assertEquals(0, estimationResult.getDeductedRefund());
 
