@@ -288,7 +288,7 @@ public class ProgramResult {
             addLogInfos(another.getLogInfoList());
             addFutureRefund(another.getFutureRefund());
             addDeductedRefund(another.getDeductedRefund());
-//            this.maxGasUsed = Math.max(this.maxGasUsed, another.getMaxGasUsed());
+            this.maxGasUsed = Math.max(this.maxGasUsed, another.getMaxGasUsed());
             LOGGER_FEDE.error("#PID{} - merge(#PID{}). parent={}, child={}", id, another.getId(), this.maxGasUsed, another.getMaxGasUsed());
             LOGGER_FEDE.error("mergeShouldBe {}", Math.max(this.maxGasUsed, another.getMaxGasUsed()));
         }
