@@ -834,12 +834,14 @@ public class Program {
                 msg.getType() == MsgType.DELEGATECALL ? getCallValue() : msg.getEndowment(),
                 limitToMaxLong(msg.getGas()), contextBalance, data, track, this.invoke.getBlockStore(),
                 msg.getType() == MsgType.STATICCALL || isStaticCall(), byTestingSuite());
+        LOGGER_FEDE.error("programInvoke.gasLimit: {}", programInvoke.getGaslimit().toString());
+        LOGGER_FEDE.error("programInvoke.gas: {}", programInvoke.getGas());
 
         VM vm = new VM(config, precompiledContracts);
         Program program = new Program(config, precompiledContracts, blockFactory, activations, programCode, programInvoke, internalTx, deletedAccountsInBlock);
 
         vm.play(program);
-        childResult  = program.getResult();
+        childResult = program.getResult();
 
         getTrace().addSubTrace(ProgramSubtrace.newCallSubtrace(CallType.fromMsgType(msg.getType()), program.getProgramInvoke(), program.getResult(), msg.getCodeAddress(), program.getTrace().getSubtraces()));
 

@@ -83,40 +83,42 @@ public class EthModuleGasEstimationDSLTest {
 
         // The estimated gas should be greater than the gas used in the call
         assertTrue(gasUsed < estimatedGas);
-        assertEquals(GasCost.STIPEND_CALL, estimatedGas - gasUsed);
-
-        // Call same transaction with estimated gas
-        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas));
-        assertTrue(runWithArgumentsAndBlock(eth, args, block));
+//        assertEquals(GasCost.STIPEND_CALL, estimatedGas - gasUsed);
 
         // Call same transaction with estimatedGas - 1, should fail
         args.setGas(TypeConverter.toQuantityJsonHex(gasUsed));
         assertFalse(runWithArgumentsAndBlock(eth, args, block));
 
         // Call same transaction with estimated gas
-//        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas -1));
+        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas));
+        assertTrue(runWithArgumentsAndBlock(eth, args, block));
+
+        // Call same transaction with estimated gas
+        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 1));
+        assertFalse(runWithArgumentsAndBlock(eth, args, block));
+
+//        assertEquals(gasUsed, estimatedGas);
+
+//        // Call same transaction with estimatedGas - 1, should fail
+//        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 86 - 1)); // todo it's overestimating by 86, why?
+//        assertFalse(runWithArgumentsAndBlock(eth, args, block));
+//
+//        // Call same transaction with estimatedGas - 1, should fail
+//        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 86));
+//        assertTrue(runWithArgumentsAndBlock(eth, args, block));
+
+        // Call same transaction with estimatedGas - 1, should fail
+//        long gasNeeded = gasUsed + 2259; // instead of adding the stipend I add the difference between STIPEND and CWV.gasUsed (41), in order to complete de 2300
+//        args.setGas(TypeConverter.toQuantityJsonHex(gasNeeded));
+//        assertTrue(runWithArgumentsAndBlock(eth, args, block));
+
+        // Call same transaction with estimatedGas - 1, should fail
+//        args.setGas(TypeConverter.toQuantityJsonHex(gasNeeded - 45 - 1));
 //        assertFalse(runWithArgumentsAndBlock(eth, args, block));
 
         // Call same transaction with estimatedGas - 1, should fail
-        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 86 - 1)); // todo it's overestimating by 86, why?
-        assertFalse(runWithArgumentsAndBlock(eth, args, block));
-
-        // Call same transaction with estimatedGas - 1, should fail
-        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 86));
-        assertTrue(runWithArgumentsAndBlock(eth, args, block));
-
-        // Call same transaction with estimatedGas - 1, should fail
-        long gasNeeded = gasUsed + 2259; // instead of adding the stipend I add the difference between STIPEND and CWV.gasUsed (41), in order to complete de 2300
-        args.setGas(TypeConverter.toQuantityJsonHex(gasNeeded));
-        assertTrue(runWithArgumentsAndBlock(eth, args, block));
-
-        // Call same transaction with estimatedGas - 1, should fail
-        args.setGas(TypeConverter.toQuantityJsonHex(gasNeeded - 45 - 1));
-        assertFalse(runWithArgumentsAndBlock(eth, args, block));
-
-        // Call same transaction with estimatedGas - 1, should fail
-        args.setGas(TypeConverter.toQuantityJsonHex(gasNeeded - 45));
-        assertTrue(runWithArgumentsAndBlock(eth, args, block));
+//        args.setGas(TypeConverter.toQuantityJsonHex(gasNeeded - 45));
+//        assertTrue(runWithArgumentsAndBlock(eth, args, block));
     }
 
     @Test

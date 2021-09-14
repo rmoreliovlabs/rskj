@@ -181,14 +181,14 @@ public class EthModule
             LOGGER_FEDE.error("shouldBe before STIPEND add {}", shouldBe);
             if(executor.getProgramCallWithValuePerformed()) {
                 gasNeeded += GasCost.STIPEND_CALL;
-                shouldBe += GasCost.STIPEND_CALL;
+//                shouldBe += GasCost.STIPEND_CALL;
             }
             LOGGER_FEDE.error("gasNeeded after STIPEND add {}", gasNeeded);
             LOGGER_FEDE.error("shouldBe after STIPEND add {}", shouldBe);
 
 
-            estimation = TypeConverter.toQuantityJsonHex(gasNeeded);
-//            estimation = TypeConverter.toQuantityJsonHex(shouldBe);
+//            estimation = TypeConverter.toQuantityJsonHex(gasNeeded);
+            estimation = TypeConverter.toQuantityJsonHex(shouldBe);
             setEstimationResult(programResult);
 
             return estimation;
