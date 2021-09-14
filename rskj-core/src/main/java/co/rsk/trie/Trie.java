@@ -54,17 +54,18 @@ import static org.ethereum.util.ByteUtil.EMPTY_BYTE_ARRAY;
  * An empty node has no subnodes and a null value
  */
 public class Trie {
-    private static final int ARITY = 2;
-    private static final int MAX_EMBEDDED_NODE_SIZE_IN_BYTES = 44;
 
     private static final Profiler profiler = ProfilerFactory.getInstance();
+
+    private static final int ARITY = 2;
+    private static final int MAX_EMBEDDED_NODE_SIZE_IN_BYTES = 44;
     private static final String INVALID_ARITY = "Invalid arity";
 
     private static final int MESSAGE_HEADER_LENGTH = 2 + Short.BYTES * 2;
     private static final String INVALID_VALUE_LENGTH = "Invalid value length";
 
     // all zeroed, default hash for empty nodes
-    private static Keccak256 emptyHash = makeEmptyHash();
+    private static final Keccak256 EMPTY_HASH = makeEmptyHash();
 
     // this node associated value, if any
     private byte[] value;
@@ -101,7 +102,10 @@ public class Trie {
     private VarInt childrenSize;
 
     // associated store, to store or retrieve nodes in the trie
-    private TrieStore store;
+    private final TrieStore store;
+
+    // already saved in store flag
+    private volatile boolean saved;
 
     // shared Path
     private final TrieKeySlice sharedPath;
@@ -117,7 +121,7 @@ public class Trie {
     }
 
     private Trie(TrieStore store, TrieKeySlice sharedPath, byte[] value) {
-        this(store, sharedPath, value, NodeReference.empty(), NodeReference.empty(), getDataLength(value), null);
+        this(store, sharedPath, value, NodeReference.empty(), NodeReference.empty(), getDataLength(value), null, new VarInt(0));
     }
 
     public Trie(TrieStore store, TrieKeySlice sharedPath, byte[] value, NodeReference left, NodeReference right, Uint24 valueLength, Keccak256 valueHash) {
@@ -152,6 +156,7 @@ public class Trie {
         }
 
         profiler.stop(metric);
+
         return trie;
     }
 
@@ -232,7 +237,9 @@ public class Trie {
         }
 
         // it doesn't need to clone value since it's retrieved from store or created from message
-        return new Trie(store, sharedPath, value, left, right, lvalue, valueHash);
+        Trie trie = new Trie(store, sharedPath, value, left, right, lvalue, valueHash);
+
+        return trie;
     }
 
     private static Trie fromMessageRskip107(ByteBuffer message, TrieStore store) {
@@ -320,7 +327,9 @@ public class Trie {
             throw new IllegalArgumentException("The message had more data than expected");
         }
 
-        return new Trie(store, sharedPath, value, left, right, lvalue, valueHash, childrenSize);
+        Trie trie = new Trie(store, sharedPath, value, left, right, lvalue, valueHash, childrenSize);
+
+        return trie;
     }
 
     /**
@@ -342,7 +351,7 @@ public class Trie {
         }
 
         if (isEmptyTrie()) {
-            return emptyHash.copy();
+            return EMPTY_HASH.copy();
         }
 
         byte[] message = this.toMessage();
@@ -361,7 +370,7 @@ public class Trie {
         }
 
         if (isEmptyTrie()) {
-            return emptyHash.copy();
+            return EMPTY_HASH.copy();
         }
 
         byte[] message = this.toMessageOrchid(isSecure);
@@ -787,7 +796,8 @@ public class Trie {
         }
 
         TrieKeySlice newSharedPath = trie.sharedPath.rebuildSharedPath(childImplicitByte, child.sharedPath);
-        return new Trie(child.store, newSharedPath, child.value, child.left, child.right, child.valueLength, child.valueHash);
+
+        return new Trie(child.store, newSharedPath, child.value, child.left, child.right, child.valueLength, child.valueHash, child.childrenSize);
     }
 
     private static Uint24 getDataLength(byte[] value) {
@@ -833,7 +843,8 @@ public class Trie {
                     this.left,
                     this.right,
                     getDataLength(value),
-                    null
+                    null,
+                    this.childrenSize
             );
         }
 
@@ -857,33 +868,44 @@ public class Trie {
             return this;
         }
 
+        VarInt childrenSize = this.childrenSize;
+
         NodeReference newNodeReference = new NodeReference(this.store, newNode, null);
         NodeReference newLeft;
         NodeReference newRight;
         if (pos == 0) {
             newLeft = newNodeReference;
             newRight = this.right;
+
+            if (childrenSize != null) {
+                childrenSize = new VarInt(childrenSize.value - this.left.referenceSize() + newLeft.referenceSize());
+            }
         } else {
             newLeft = this.left;
             newRight = newNodeReference;
+
+            if (childrenSize != null) {
+                childrenSize = new VarInt(childrenSize.value - this.right.referenceSize() + newRight.referenceSize());
+            }
         }
 
         if (isEmptyTrie(this.valueLength, newLeft, newRight)) {
             return null;
         }
 
-        return new Trie(this.store, this.sharedPath, this.value, newLeft, newRight, this.valueLength, this.valueHash);
+        return new Trie(this.store, this.sharedPath, this.value, newLeft, newRight, this.valueLength, this.valueHash, childrenSize);
     }
 
     private Trie split(TrieKeySlice commonPath) {
         int commonPathLength = commonPath.length();
         TrieKeySlice newChildSharedPath = sharedPath.slice(commonPathLength + 1, sharedPath.length());
-        Trie newChildTrie = new Trie(this.store, newChildSharedPath, this.value, this.left, this.right, this.valueLength, this.valueHash);
+        Trie newChildTrie = new Trie(this.store, newChildSharedPath, this.value, this.left, this.right, this.valueLength, this.valueHash, this.childrenSize);
         NodeReference newChildReference = new NodeReference(this.store, newChildTrie, null);
 
         // this bit will be implicit and not present in a shared path
         byte pos = sharedPath.get(commonPathLength);
 
+        VarInt childrenSize = new VarInt(newChildReference.referenceSize());
         NodeReference newLeft;
         NodeReference newRight;
         if (pos == 0) {
@@ -894,7 +916,7 @@ public class Trie {
             newRight = newChildReference;
         }
 
-        return new Trie(this.store, commonPath, null, newLeft, newRight, Uint24.ZERO, null);
+        return new Trie(this.store, commonPath, null, newLeft, newRight, Uint24.ZERO, null, childrenSize);
     }
 
     public boolean isTerminal() {
@@ -1421,5 +1443,14 @@ public class Trie {
         subnodes.add(this);
 
         return subnodes;
+    }
+
+    public boolean wasSaved() {
+        return this.saved;
+    }
+
+    public Trie markAsSaved() {
+        this.saved = true;
+        return this;
     }
 }

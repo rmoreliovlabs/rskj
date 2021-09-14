@@ -151,15 +151,15 @@ public class RskSystemProperties extends SystemProperties {
     }
 
     public boolean bloomServiceEnabled() {
-        return getBoolean("bloom.service", false);
+        return getBoolean("blooms.service", false);
     }
 
     public int bloomNumberOfBlocks() {
-        return getInt("bloom.blocks", 64);
+        return getInt("blooms.blocks", 64);
     }
 
     public int bloomNumberOfConfirmations() {
-        return getInt("bloom.confirmations", 400);
+        return getInt("blooms.confirmations", 400);
     }
 
     public boolean waitForSync() {
@@ -214,6 +214,10 @@ public class RskSystemProperties extends SystemProperties {
     //TODO: REMOVE THIS WHEN THE LocalBLockTests starts working with REMASC
     public void setRemascEnabled(boolean remascEnabled) {
         this.remascEnabled = remascEnabled;
+    }
+
+    public boolean skipRemasc() {
+            return getBoolean("rpc.skipRemasc", false);
     }
 
     public long peerDiscoveryMessageTimeOut() {
@@ -344,6 +348,10 @@ public class RskSystemProperties extends SystemProperties {
 
     public int getStatesCacheSize() {
         return configFromFiles.getInt("cache.states.max-elements");
+    }
+
+    public int getStateRootsCacheSize() {
+        return configFromFiles.getInt("cache.stateRoots.max-elements");
     }
 
     public int getReceiptsCacheSize() {
