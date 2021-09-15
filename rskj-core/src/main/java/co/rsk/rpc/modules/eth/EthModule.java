@@ -152,11 +152,6 @@ public class EthModule
     public String estimateGas(CallArguments args) {
         String estimation = null;
         Block bestBlock = blockchain.getBestBlock();
-        return internalEstimateGas(args, estimation, bestBlock);
-    }
-    private static final Logger LOGGER_FEDE = LoggerFactory.getLogger("fede");
-
-    public String internalEstimateGas(CallArguments args, String estimation, Block bestBlock) {
         try {
             CallArgumentsToByteArray hexArgs = new CallArgumentsToByteArray(args);
 
@@ -176,22 +171,7 @@ public class EthModule
 
             ProgramResult programResult = executor.getResult();
 
-            long newGasNeeded = programResult.getMaxGasUsed() + programResult.getDeductedRefund();
-            LOGGER_FEDE.error("newGasNeeded: {}", newGasNeeded);
-
-            if(!executor.getProgramCallWithValuePerformed()) {
-                newGasNeeded = programResult.getGasUsed() + programResult.getDeductedRefund();
-                LOGGER_FEDE.error("newGasNeeded (getGasUsed1): {}", newGasNeeded);
-            } else if(executor.getProgramCallWithValuePerformed() && programResult.getDeductedRefund() == 0) {
-                newGasNeeded = programResult.getMaxGasUsed() + programResult.getDeductedRefund();
-                LOGGER_FEDE.error("newGasNeeded (getGasUsed2): {}", newGasNeeded);
-            } else if(executor.getProgramCallWithValuePerformed() && programResult.getDeductedRefund() > 0) {
-                newGasNeeded = programResult.getMaxGasUsed() + programResult.getDeductedRefund();
-                LOGGER_FEDE.error("newGasNeeded (maxGasUsed3): {}", newGasNeeded);
-            } else if(executor.getProgramCallWithValuePerformed()) {
-                newGasNeeded = programResult.getMaxGasUsed() + programResult.getDeductedRefund();
-                LOGGER_FEDE.error("newGasNeeded (maxGasUsed4): {}", newGasNeeded);
-            }
+            long newGasNeeded = programResult.getUsedGasLeft() ? programResult.getGasUsed() : programResult.getMaxGasUsed();
 
             estimation = TypeConverter.toQuantityJsonHex(newGasNeeded);
             setEstimationResult(programResult);
@@ -201,6 +181,7 @@ public class EthModule
             LOGGER.debug("eth_estimateGas(): {}", estimation);
         }
     }
+    private static final Logger LOGGER_FEDE = LoggerFactory.getLogger("fede");
 
     @Override
     public String sendTransaction(CallArguments args) {

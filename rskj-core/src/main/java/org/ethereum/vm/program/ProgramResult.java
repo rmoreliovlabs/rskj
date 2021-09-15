@@ -71,6 +71,16 @@ public class ProgramResult {
      */
     private List<CallCreate> callCreateList;
 
+    private boolean usedGasLeft = false;
+
+    public void markUsedGasleft() {
+        this.usedGasLeft = true;
+    }
+
+    public boolean getUsedGasLeft() {
+        return usedGasLeft;
+    }
+
     public void clearUsedGas() {
         gasUsed = 0;
     }
@@ -84,6 +94,7 @@ public class ProgramResult {
         gasUsed = GasCost.add(gasUsed, gas);
         LOGGER_FEDE.error("#PID{} - spendGas({}). gasUsed: b={}, a={}", id, gas, old, gasUsed);
         this.maxGasUsed = Math.max(gasUsed, maxGasUsed);
+        LOGGER_FEDE.error("#PID{} - gasUsed: {}", id, gasUsed);
         LOGGER_FEDE.error("#PID{} - maxUsed: {}", id, maxGasUsed);
     }
 
@@ -291,6 +302,7 @@ public class ProgramResult {
             this.maxGasUsed = Math.max(this.maxGasUsed, another.getMaxGasUsed());
             LOGGER_FEDE.error("#PID{} - merge(#PID{}). parent={}, child={}", id, another.getId(), this.maxGasUsed, another.getMaxGasUsed());
             LOGGER_FEDE.error("mergeShouldBe {}", Math.max(this.maxGasUsed, another.getMaxGasUsed()));
+            this.usedGasLeft = this.usedGasLeft || another.usedGasLeft;
         }
     }
     

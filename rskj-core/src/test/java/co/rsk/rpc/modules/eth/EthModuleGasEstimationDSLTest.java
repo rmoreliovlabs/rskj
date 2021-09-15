@@ -34,8 +34,6 @@ public class EthModuleGasEstimationDSLTest {
     public static final long BLOCK_GAS_LIMIT = new TestSystemProperties().getTargetGasLimit();
     private ProgramResult localCallResult;
 
-    private static final Logger LOGGER_FEDE = LoggerFactory.getLogger("fede");
-
     @Test
     public void testEstimateGas_contractCallsWithValueTransfer() throws FileNotFoundException, DslProcessorException {
         World world = World.processedWorld("dsl/eth_module/estimateGas/callWithValue.txt");
@@ -248,28 +246,17 @@ public class EthModuleGasEstimationDSLTest {
         ProgramResult callConstant = eth.callConstant(args, block);
         long callConstantGasUsed = callConstant.getGasUsed();
 
-        LOGGER_FEDE.error("------------------ESTIMATE GAS------------------");
         long estimatedGas = Long.parseLong(eth.estimateGas(args).substring("0x".length()), 16);
-        LOGGER_FEDE.error("------------------ESTIMATE END------------------");
         assertTrue(estimatedGas > callConstantGasUsed);
-
-        LOGGER_FEDE.error("------------------ callConstantGasUsed ------------------");
+        assertEquals(callConstant.getMaxGasUsed(), estimatedGas);
 
         args.setGas(TypeConverter.toQuantityJsonHex(callConstantGasUsed));
         assertFalse(runWithArgumentsAndBlock(eth, args, block));
 
-        LOGGER_FEDE.error("------------------ estimatedGas ------------------");
-
         args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas));
         assertTrue(runWithArgumentsAndBlock(eth, args, block));
 
-//        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 1));
-//        assertFalse(runWithArgumentsAndBlock(eth, args, block));
-
-        args.setGas(TypeConverter.toQuantityJsonHex(callConstant.getMaxGasUsed()));
-        assertTrue(runWithArgumentsAndBlock(eth, args, block));
-
-        args.setGas(TypeConverter.toQuantityJsonHex(callConstant.getMaxGasUsed() - 1));
+        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 1));
         assertFalse(runWithArgumentsAndBlock(eth, args, block));
     }
 
@@ -328,21 +315,18 @@ public class EthModuleGasEstimationDSLTest {
         long callConstantGasUsed = callConstant.getGasUsed();
 
         long estimatedGas = Long.parseLong(eth.estimateGas(args).substring("0x".length()), 16);
-
-        assertEquals(callConstant.getMaxGasUsed(), estimatedGas);
+        assertEquals(callConstant.getGasUsed(), estimatedGas);
 
         args.setGas(TypeConverter.toQuantityJsonHex(callConstantGasUsed));
         assertTrue(runWithArgumentsAndBlock(eth, args, block));
 
-        // estimated gas should match callConstantGasUsed
-        args.setGas(TypeConverter.toQuantityJsonHex(callConstantGasUsed - 1));
-        assertFalse(runWithArgumentsAndBlock(eth, args, block));
+        assertEquals(callConstantGasUsed, estimatedGas);
 
         args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas));
         assertTrue(runWithArgumentsAndBlock(eth, args, block));
 
-//        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 1));
-//        assertFalse(runWithArgumentsAndBlock(eth, args, block));
+        args.setGas(TypeConverter.toQuantityJsonHex(estimatedGas - 1));
+        assertFalse(runWithArgumentsAndBlock(eth, args, block));
     }
 
     public boolean runWithArgumentsAndBlock(EthModule ethModule, CallArguments args, Block block) {

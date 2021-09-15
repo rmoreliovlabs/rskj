@@ -1545,10 +1545,17 @@ public class VM {
         long calleeGas = Math.min(remainingGas, specifiedGasPlusMin);
 
         LOGGER_FEDE.error("calleeGas: {}", calleeGas);
+        LOGGER_FEDE.error("remainingGas: {}", remainingGas);
         if (computeGas) {
+            long oldGasCost = gasCost;
             gasCost = GasCost.add(gasCost, calleeGas);
-            LOGGER_FEDE.error("compute gas2");
+            LOGGER_FEDE.error("compute gas2. gasCost: b={}, a={}", oldGasCost, gasCost);
             spendOpCodeGas();
+
+            boolean passedRemainingGasToChild = calleeGas == remainingGas;
+            if(passedRemainingGasToChild) {
+                program.getResult().markUsedGasleft();
+            }
         }
         LOGGER_FEDE.error("gasCost: {}", gasCost);
 
