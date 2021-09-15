@@ -175,20 +175,25 @@ public class EthModule
             // in these operations unless the user provides a malicius gasLimit value.
 
             ProgramResult programResult = executor.getResult();
-            long gasNeeded = programResult.getGasUsed() + programResult.getDeductedRefund();
-            long shouldBe = programResult.getMaxGasUsed() + programResult.getDeductedRefund();
-            LOGGER_FEDE.error("gasNeeded before STIPEND add {}", gasNeeded);
-            LOGGER_FEDE.error("shouldBe before STIPEND add {}", shouldBe);
-            if(executor.getProgramCallWithValuePerformed()) {
-                gasNeeded += GasCost.STIPEND_CALL;
-//                shouldBe += GasCost.STIPEND_CALL;
+
+            long newGasNeeded = programResult.getMaxGasUsed() + programResult.getDeductedRefund();
+            LOGGER_FEDE.error("newGasNeeded: {}", newGasNeeded);
+
+            if(!executor.getProgramCallWithValuePerformed()) {
+                newGasNeeded = programResult.getGasUsed() + programResult.getDeductedRefund();
+                LOGGER_FEDE.error("newGasNeeded (getGasUsed1): {}", newGasNeeded);
+            } else if(executor.getProgramCallWithValuePerformed() && programResult.getDeductedRefund() == 0) {
+                newGasNeeded = programResult.getMaxGasUsed() + programResult.getDeductedRefund();
+                LOGGER_FEDE.error("newGasNeeded (getGasUsed2): {}", newGasNeeded);
+            } else if(executor.getProgramCallWithValuePerformed() && programResult.getDeductedRefund() > 0) {
+                newGasNeeded = programResult.getMaxGasUsed() + programResult.getDeductedRefund();
+                LOGGER_FEDE.error("newGasNeeded (maxGasUsed3): {}", newGasNeeded);
+            } else if(executor.getProgramCallWithValuePerformed()) {
+                newGasNeeded = programResult.getMaxGasUsed() + programResult.getDeductedRefund();
+                LOGGER_FEDE.error("newGasNeeded (maxGasUsed4): {}", newGasNeeded);
             }
-            LOGGER_FEDE.error("gasNeeded after STIPEND add {}", gasNeeded);
-            LOGGER_FEDE.error("shouldBe after STIPEND add {}", shouldBe);
 
-
-//            estimation = TypeConverter.toQuantityJsonHex(gasNeeded);
-            estimation = TypeConverter.toQuantityJsonHex(shouldBe);
+            estimation = TypeConverter.toQuantityJsonHex(newGasNeeded);
             setEstimationResult(programResult);
 
             return estimation;
