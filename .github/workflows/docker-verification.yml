@@ -15,7 +15,6 @@ permissions:
 jobs:
   docker:
     runs-on: ubuntu-24.04
-    if: github.event.pull_request.head.repo.fork == false
 
     steps:
       - name: Checkout
@@ -25,8 +24,8 @@ jobs:
         run: |
           set -e
           
-          docker build -t rsksmart/rskj:latest .
-          container_id=$(docker run -d --name rskj-container rsksmart/rskj:latest --regtest)
+          docker build -t rmoreliovlabs/rskj:latest .
+          container_id=$(docker run -d --name rskj-container rmoreliovlabs/rskj:latest --regtest)
           trap 'docker stop "$container_id"' EXIT INT QUIT TERM
           
           # Give a couple of seconds for the container to start.
